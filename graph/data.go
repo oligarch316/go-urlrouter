@@ -6,6 +6,7 @@ import (
 )
 
 // TODO: These should become generic constraints
+// - Tricky without non-constraint sum types
 type (
 	Parameter string
 	Segment   string
