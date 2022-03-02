@@ -43,13 +43,14 @@ type nodeValue struct {
 }
 
 func (nv nodeValue) result(paramVals []Segment) *Result {
-	res := &Result{
-		Parameters: make(map[Parameter]Segment),
-		Value:      nv.value,
-	}
+	res := &Result{Value: nv.value}
 
-	for i, key := range nv.parameterKeys {
-		res.Parameters[key] = paramVals[i]
+	if len(nv.parameterKeys) > 0 {
+		res.Parameters = make(map[Parameter]Segment)
+
+		for i, key := range nv.parameterKeys {
+			res.Parameters[key] = paramVals[i]
+		}
 	}
 
 	return res
@@ -84,7 +85,11 @@ func (nc *nodeConstant) add(keys []Key, val *nodeValue) error {
 
 func (nc nodeConstant) search(segs, paramVals []Segment) *Result {
 	if len(segs) < 1 {
-		return nc.valueEdges.result(paramVals)
+		if res := nc.valueEdges.result(paramVals); res != nil {
+			return res
+		}
+
+		return nc.wildcardEdges.result(nil, paramVals)
 	}
 
 	if res := nc.constantEdges.search(segs, paramVals); res != nil {
@@ -122,14 +127,14 @@ func (np *nodeParameter) add(keys []Key, val *nodeValue) error {
 	return internalErrorf("parameter node: invalid edge type %T: %s", head, head)
 }
 
-func (np nodeParameter) search(segs, paramVals []Segment) *Result {
+func (np nodeParameter) searchStatic(segs, paramVals []Segment) *Result {
 	if len(segs) < 1 {
 		return np.valueEdges.result(paramVals)
 	}
 
-	if res := np.constantEdges.search(segs, paramVals); res != nil {
-		return res
-	}
+	return np.constantEdges.search(segs, paramVals)
+}
 
+func (np nodeParameter) searchWild(segs, paramVals []Segment) *Result {
 	return np.wildcardEdges.result(segs, paramVals)
 }

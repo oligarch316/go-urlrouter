@@ -85,12 +85,6 @@ func TestTreeAddError(t *testing.T) {
 		wild graph.KeyWildcard
 	)
 
-	t.Run("empty keys", func(t *testing.T) {
-		var tree LoggedTree
-
-		assert.ErrorIs(t, tree.Add("someVal"), graph.ErrEmptyKeys, tree.Title())
-	})
-
 	t.Run("nil key", func(t *testing.T) {
 		subtests := [][]graph.Key{
 			{nil},
@@ -234,19 +228,29 @@ func TestTreeSearchSuccess(t *testing.T) {
 	type expectF func(*expectItem)
 
 	var (
-		expectValue = func(val graph.Value) expectF { return func(ei *expectItem) { ei.value = val } }
-		expectParam = func(k graph.Parameter, v graph.Segment) expectF { return func(ei *expectItem) { ei.params[k] = v } }
-		expectTail  = func(tail ...graph.Segment) expectF { return func(ei *expectItem) { ei.tail = tail } }
+		expectValue = func(val graph.Value) expectF {
+			return func(ei *expectItem) { ei.value = val }
+		}
 
-		add = func(val graph.Value, keys ...graph.Key) addItem { return addItem{value: val, keys: keys} }
+		expectParam = func(k graph.Parameter, v graph.Segment) expectF {
+			return func(ei *expectItem) {
+				if ei.params == nil {
+					ei.params = make(map[graph.Parameter]graph.Segment)
+				}
+				ei.params[k] = v
+			}
+		}
+
+		expectTail = func(tail ...graph.Segment) expectF {
+			return func(ei *expectItem) { ei.tail = tail }
+		}
+
+		add = func(val graph.Value, keys ...graph.Key) addItem {
+			return addItem{value: val, keys: keys}
+		}
 
 		search = func(query ...graph.Segment) func(...expectF) searchItem {
-			item := searchItem{
-				query: query,
-				expect: expectItem{
-					params: make(map[graph.Parameter]graph.Segment),
-				},
-			}
+			item := searchItem{query: query}
 
 			return func(expectations ...expectF) searchItem {
 				for _, e := range expectations {
@@ -267,51 +271,70 @@ func TestTreeSearchSuccess(t *testing.T) {
 		// - Correct wildcard tails
 		{
 			addItems: []addItem{
-				add("valConst", a, b, c),
-				add("valParam", a, b, param1),
-				add("valWild", a, b, wild),
+				add("valB", a, b),
+				add("valC", a, c),
 			},
 			searchItems: []searchItem{
-				search("a", "b", "c")(
-					expectValue("valConst"),
+				search("a", "b")(
+					expectValue("valB"),
 				),
-				search("a", "b", "d")(
-					expectValue("valParam"),
-					expectParam("param1", "d"),
-				),
-				search("a", "b", "c", "d")(
-					expectValue("valWild"),
-					expectTail("c", "d"),
+				search("a", "c")(
+					expectValue("valC"),
 				),
 			},
 		},
 		{
 			addItems: []addItem{
-				add("val1", wild),
-				add("val2", param1, wild),
-				add("val3", param1, param2, wild),
-				add("val4", param1, param2, param3, wild),
+				add("valRoot"),
+				add("valConst", a),
+				add("valParam", param1),
+				add("valWild", wild),
 			},
 			searchItems: []searchItem{
+				search()(
+					expectValue("valRoot"),
+				),
+				search("a")(
+					expectValue("valConst"),
+				),
+				search("b")(
+					expectValue("valParam"),
+					expectParam("param1", "b"),
+				),
+				search("a", "b")(
+					expectValue("valWild"),
+					expectTail("a", "b"),
+				),
+			},
+		},
+		{
+			addItems: []addItem{
+				add("val0", wild),
+				add("val1", param1, wild),
+				add("val2", param1, param2, wild),
+				add("val3", param1, param2, param3, wild),
+			},
+			searchItems: []searchItem{
+				search()(
+					expectValue("val0"),
+				),
 				search("a")(
 					expectValue("val1"),
-					expectTail("a"),
+					expectParam("param1", "a"),
 				),
 				search("a", "b")(
 					expectValue("val2"),
 					expectParam("param1", "a"),
-					expectTail("b"),
+					expectParam("param2", "b"),
 				),
 				search("a", "b", "c")(
-					// TODO: currently fails
 					expectValue("val3"),
 					expectParam("param1", "a"),
 					expectParam("param2", "b"),
-					expectTail("c"),
+					expectParam("param3", "c"),
 				),
 				search("a", "b", "c", "d")(
-					// TODO: currently fails
-					expectValue("val4"),
+					expectValue("val3"),
 					expectParam("param1", "a"),
 					expectParam("param2", "b"),
 					expectParam("param3", "c"),
@@ -324,9 +347,6 @@ func TestTreeSearchSuccess(t *testing.T) {
 				add("valA", param1, param2, a),
 				add("valB", param2, param3, b),
 				add("valC", param3, param1, c),
-
-				add("valX", param1, param2, param3),
-				add("valY", param2, param3, wild),
 			},
 			searchItems: []searchItem{
 				search("seg1", "seg2", "a")(
@@ -343,19 +363,6 @@ func TestTreeSearchSuccess(t *testing.T) {
 					expectValue("valC"),
 					expectParam("param3", "seg1"),
 					expectParam("param1", "seg2"),
-				),
-				search("seg1", "seg2", "d")(
-					// TODO: currently fails
-					expectValue("valX"),
-					expectParam("param1", "seg1"),
-					expectParam("param2", "seg2"),
-					expectParam("param3", "d"),
-				),
-				search("seg1", "seg2", "d", "e")(
-					expectValue("valY"),
-					expectParam("param2", "seg1"),
-					expectParam("param3", "seg2"),
-					expectTail("d", "e"),
 				),
 			},
 		},

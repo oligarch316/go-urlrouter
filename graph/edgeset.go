@@ -51,7 +51,8 @@ func (wes *wildcardEdgeSet) add(e edgeWildcard, keys []Key, val *nodeValue) erro
 
 func (wes *wildcardEdgeSet) result(segs, paramVals []Segment) *Result {
 	res := wes.term.result(paramVals)
-	if res != nil {
+
+	if res != nil && len(segs) > 0 {
 		res.Tail = segs
 	}
 
@@ -84,19 +85,6 @@ func (ces constantEdgeSet) search(segs, paramVals []Segment) *Result {
 
 	return node.search(tail, paramVals)
 }
-
-/* TODO
- * The search logic here currently iterates over candidate nodes in order of shortest -> longest
- * number of param keys need to reach said node. This results in correct prioritization when following
- * that node through to a constant or value edge, but is incorrect for following to a wildcard edge.
- * In the wildcard case, longer param key chains should take priority over shorter.
- *
- * Current plan for a fix is to:
- * 1.) Remove wildcardEdges from nodeParameter
- * 2.) Have nMap value be struct{ nodeParameter, wildcardEdgeSet } (separate map would be optimized but don't bother now)
- * 3.) Modify add to check for wildcard edge from popKeys(...) and add appropriately
- * 4.) Modify search to perform wildcard search after node search and in reverse order
- */
 
 type parameterEdgeSet struct {
 	nList sort.IntSlice
@@ -132,7 +120,10 @@ func (pes *parameterEdgeSet) add(e edgeParameter, keys []Key, val *nodeValue) er
 }
 
 func (pes parameterEdgeSet) search(segs, paramVals []Segment) *Result {
-	nSegs := len(segs)
+	var (
+		nSegs        = len(segs)
+		wildSearches []func() *Result
+	)
 
 	for _, nParams := range pes.nList {
 		if nParams > nSegs {
@@ -145,7 +136,17 @@ func (pes parameterEdgeSet) search(segs, paramVals []Segment) *Result {
 			childParamVals = append(paramVals, segs[:nParams]...)
 		)
 
-		if res := childNode.search(childSegs, childParamVals); res != nil {
+		if res := childNode.searchStatic(childSegs, childParamVals); res != nil {
+			return res
+		}
+
+		wildSearches = append(wildSearches, func() *Result {
+			return childNode.searchWild(childSegs, childParamVals)
+		})
+	}
+
+	for i := len(wildSearches) - 1; i >= 0; i-- {
+		if res := wildSearches[i](); res != nil {
 			return res
 		}
 	}
