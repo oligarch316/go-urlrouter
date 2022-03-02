@@ -9,9 +9,9 @@ import (
 
 func TestNodeAddInternalError(t *testing.T) {
 	var (
-		node nodeParameter
+		node nodeParameter[string]
 		keys = []Key{KeyParameter("someParam")}
-		val  = nodeValue{value: "someVal"}
+		val  = nodeValue[string]{value: "someVal"}
 	)
 
 	assert.ErrorIs(t, node.add(keys, &val), ErrInternal)

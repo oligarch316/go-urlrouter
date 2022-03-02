@@ -9,13 +9,12 @@ import (
 type (
 	Parameter string
 	Segment   string
-	Value     interface{}
 )
 
-type Result struct {
+type Result[V any] struct {
 	Parameters map[Parameter]Segment
 	Tail       []Segment
-	Value      Value
+	Value      V
 }
 
 type (

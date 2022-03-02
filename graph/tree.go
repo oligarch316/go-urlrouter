@@ -1,11 +1,11 @@
 package graph
 
-type Tree struct{ root nodeConstant }
+type Tree[V any] struct{ root nodeConstant[V] }
 
-func (t *Tree) Add(val Value, keys ...Key) error {
-	return t.root.add(keys, &nodeValue{value: val})
+func (t *Tree[V]) Add(val V, keys ...Key) error {
+	return t.root.add(keys, &nodeValue[V]{value: val})
 }
 
-func (t *Tree) Search(segs ...Segment) *Result {
+func (t *Tree[V]) Search(segs ...Segment) *Result[V] {
 	return t.root.search(segs, nil)
 }
