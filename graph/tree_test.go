@@ -287,30 +287,32 @@ func TestTreeSearchSuccess(t *testing.T) {
 		},
 		{
 			addItems: []addItem{
-				add("val1", wild),
-				add("val2", param1, wild),
-				add("val3", param1, param2, wild),
-				add("val4", param1, param2, param3, wild),
+				add("val0", wild),
+				add("val1", param1, wild),
+				add("val2", param1, param2, wild),
+				add("val3", param1, param2, param3, wild),
 			},
 			searchItems: []searchItem{
+				// TODO: All currently fail due to nil <-> []Segment{} mismatch
+				search()(
+					expectValue("val0"),
+				),
 				search("a")(
 					expectValue("val1"),
-					expectTail("a"),
+					expectParam("param1", "a"),
 				),
 				search("a", "b")(
 					expectValue("val2"),
 					expectParam("param1", "a"),
-					expectTail("b"),
+					expectParam("param2", "b"),
 				),
 				search("a", "b", "c")(
-					// TODO: currently fails
 					expectValue("val3"),
 					expectParam("param1", "a"),
 					expectParam("param2", "b"),
-					expectTail("c"),
+					expectParam("param3", "c"),
 				),
 				search("a", "b", "c", "d")(
-					// TODO: currently fails
 					expectValue("val4"),
 					expectParam("param1", "a"),
 					expectParam("param2", "b"),
@@ -345,7 +347,6 @@ func TestTreeSearchSuccess(t *testing.T) {
 					expectParam("param1", "seg2"),
 				),
 				search("seg1", "seg2", "d")(
-					// TODO: currently fails
 					expectValue("valX"),
 					expectParam("param1", "seg1"),
 					expectParam("param2", "seg2"),

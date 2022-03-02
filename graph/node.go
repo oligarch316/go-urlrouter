@@ -122,14 +122,14 @@ func (np *nodeParameter) add(keys []Key, val *nodeValue) error {
 	return internalErrorf("parameter node: invalid edge type %T: %s", head, head)
 }
 
-func (np nodeParameter) search(segs, paramVals []Segment) *Result {
+func (np nodeParameter) searchStatic(segs, paramVals []Segment) *Result {
 	if len(segs) < 1 {
 		return np.valueEdges.result(paramVals)
 	}
 
-	if res := np.constantEdges.search(segs, paramVals); res != nil {
-		return res
-	}
+	return np.constantEdges.search(segs, paramVals)
+}
 
+func (np nodeParameter) searchWild(segs, paramVals []Segment) *Result {
 	return np.wildcardEdges.result(segs, paramVals)
 }
