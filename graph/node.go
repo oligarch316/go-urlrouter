@@ -84,7 +84,11 @@ func (nc *nodeConstant) add(keys []Key, val *nodeValue) error {
 
 func (nc nodeConstant) search(segs, paramVals []Segment) *Result {
 	if len(segs) < 1 {
-		return nc.valueEdges.result(paramVals)
+		if res := nc.valueEdges.result(paramVals); res != nil {
+			return res
+		}
+
+		return nc.wildcardEdges.result(nil, paramVals)
 	}
 
 	if res := nc.constantEdges.search(segs, paramVals); res != nil {
