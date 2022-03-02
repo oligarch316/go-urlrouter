@@ -3,25 +3,25 @@ package graph
 import "sort"
 
 type (
-	DuplicateValueError      struct{ ExistingValue Value }
-	InvalidContinuationError struct{ Continuation []Key }
+	DuplicateValueError[V any] struct{ ExistingValue V }
+	InvalidContinuationError   struct{ Continuation []Key }
 )
 
-func (dve DuplicateValueError) Error() string      { return "dupliate value" }
+func (dve DuplicateValueError[_]) Error() string   { return "dupliate value" }
 func (ice InvalidContinuationError) Error() string { return "invalid continuation" }
 
-type terminalEdge struct{ val *nodeValue }
+type terminalEdge[V any] struct{ val *nodeValue[V] }
 
-func (te *terminalEdge) add(val *nodeValue) error {
+func (te *terminalEdge[V]) add(val *nodeValue[V]) error {
 	if te.val != nil {
-		return DuplicateValueError{ExistingValue: te.val.value}
+		return DuplicateValueError[V]{ExistingValue: te.val.value}
 	}
 
 	te.val = val
 	return nil
 }
 
-func (te *terminalEdge) result(paramVals []Segment) *Result {
+func (te *terminalEdge[V]) result(paramVals []Segment) *Result[V] {
 	if te.val == nil {
 		return nil
 	}
@@ -29,19 +29,19 @@ func (te *terminalEdge) result(paramVals []Segment) *Result {
 	return te.val.result(paramVals)
 }
 
-type valueEdgeSet struct{ term terminalEdge }
+type valueEdgeSet[V any] struct{ term terminalEdge[V] }
 
-func (ves *valueEdgeSet) add(e edgeValue, val *nodeValue) error {
+func (ves *valueEdgeSet[V]) add(e edgeValue, val *nodeValue[V]) error {
 	return ves.term.add(val)
 }
 
-func (ves *valueEdgeSet) result(paramVals []Segment) *Result {
+func (ves *valueEdgeSet[V]) result(paramVals []Segment) *Result[V] {
 	return ves.term.result(paramVals)
 }
 
-type wildcardEdgeSet struct{ term terminalEdge }
+type wildcardEdgeSet[V any] struct{ term terminalEdge[V] }
 
-func (wes *wildcardEdgeSet) add(e edgeWildcard, keys []Key, val *nodeValue) error {
+func (wes *wildcardEdgeSet[V]) add(e edgeWildcard, keys []Key, val *nodeValue[V]) error {
 	if len(keys) > 0 {
 		return InvalidContinuationError{Continuation: keys}
 	}
@@ -49,7 +49,7 @@ func (wes *wildcardEdgeSet) add(e edgeWildcard, keys []Key, val *nodeValue) erro
 	return wes.term.add(val)
 }
 
-func (wes *wildcardEdgeSet) result(segs, paramVals []Segment) *Result {
+func (wes *wildcardEdgeSet[V]) result(segs, paramVals []Segment) *Result[V] {
 	res := wes.term.result(paramVals)
 
 	if res != nil && len(segs) > 0 {
@@ -59,23 +59,23 @@ func (wes *wildcardEdgeSet) result(segs, paramVals []Segment) *Result {
 	return res
 }
 
-type constantEdgeSet map[edgeConstant]*nodeConstant
+type constantEdgeSet[V any] map[edgeConstant]*nodeConstant[V]
 
-func (ces *constantEdgeSet) add(e edgeConstant, keys []Key, val *nodeValue) error {
+func (ces *constantEdgeSet[V]) add(e edgeConstant, keys []Key, val *nodeValue[V]) error {
 	if *ces == nil {
-		*ces = make(constantEdgeSet)
+		*ces = make(constantEdgeSet[V])
 	}
 
 	node, ok := (*ces)[e]
 	if !ok {
-		node = new(nodeConstant)
+		node = new(nodeConstant[V])
 		(*ces)[e] = node
 	}
 
 	return node.add(keys, val)
 }
 
-func (ces constantEdgeSet) search(segs, paramVals []Segment) *Result {
+func (ces constantEdgeSet[V]) search(segs, paramVals []Segment) *Result[V] {
 	head, tail := edgeConstant(segs[0]), segs[1:]
 
 	node, ok := ces[head]
@@ -86,13 +86,13 @@ func (ces constantEdgeSet) search(segs, paramVals []Segment) *Result {
 	return node.search(tail, paramVals)
 }
 
-type parameterEdgeSet struct {
+type parameterEdgeSet[V any] struct {
 	nList sort.IntSlice
-	nMap  map[int]*nodeParameter
+	nMap  map[int]*nodeParameter[V]
 }
 
-func (pes *parameterEdgeSet) createEntry(n int) *nodeParameter {
-	node := new(nodeParameter)
+func (pes *parameterEdgeSet[V]) createEntry(n int) *nodeParameter[V] {
+	node := new(nodeParameter[V])
 
 	pes.nMap[n] = node
 
@@ -103,9 +103,9 @@ func (pes *parameterEdgeSet) createEntry(n int) *nodeParameter {
 	return node
 }
 
-func (pes *parameterEdgeSet) add(e edgeParameter, keys []Key, val *nodeValue) error {
+func (pes *parameterEdgeSet[V]) add(e edgeParameter, keys []Key, val *nodeValue[V]) error {
 	if pes.nMap == nil {
-		pes.nMap = make(map[int]*nodeParameter)
+		pes.nMap = make(map[int]*nodeParameter[V])
 	}
 
 	val.parameterKeys = append(val.parameterKeys, e...)
@@ -119,10 +119,10 @@ func (pes *parameterEdgeSet) add(e edgeParameter, keys []Key, val *nodeValue) er
 	return node.add(keys, val)
 }
 
-func (pes parameterEdgeSet) search(segs, paramVals []Segment) *Result {
+func (pes parameterEdgeSet[V]) search(segs, paramVals []Segment) *Result[V] {
 	var (
 		nSegs        = len(segs)
-		wildSearches []func() *Result
+		wildSearches []func() *Result[V]
 	)
 
 	for _, nParams := range pes.nList {
@@ -140,7 +140,7 @@ func (pes parameterEdgeSet) search(segs, paramVals []Segment) *Result {
 			return res
 		}
 
-		wildSearches = append(wildSearches, func() *Result {
+		wildSearches = append(wildSearches, func() *Result[V] {
 			return childNode.searchWild(childSegs, childParamVals)
 		})
 	}

@@ -44,11 +44,11 @@ func (l Log) String() string {
 }
 
 type LoggedTree struct {
-	tree graph.Tree
+	tree graph.Tree[string]
 	Log
 }
 
-func (lt *LoggedTree) Add(val graph.Value, keys ...graph.Key) error {
+func (lt *LoggedTree) Add(val string, keys ...graph.Key) error {
 	action := Action{name: "add"}
 	for _, key := range keys {
 		str := "<nil>"
@@ -63,7 +63,7 @@ func (lt *LoggedTree) Add(val graph.Value, keys ...graph.Key) error {
 	return lt.tree.Add(val, keys...)
 }
 
-func (lt *LoggedTree) Search(segs ...graph.Segment) (*graph.Result, Log) {
+func (lt *LoggedTree) Search(segs ...graph.Segment) (*graph.Result[string], Log) {
 	action := Action{name: "search"}
 	for _, seg := range segs {
 		action.data = append(action.data, string(seg))
@@ -173,7 +173,7 @@ func TestTreeAddError(t *testing.T) {
 		for _, subtest := range subtests {
 			var (
 				tree      LoggedTree
-				targetErr graph.DuplicateValueError
+				targetErr graph.DuplicateValueError[string]
 			)
 
 			if !assert.NoError(t, tree.Add("firstVal", subtest.first...), tree.Title()) {
@@ -209,12 +209,12 @@ func TestTreeSearchSuccess(t *testing.T) {
 
 	type (
 		addItem struct {
-			value graph.Value
+			value string
 			keys  []graph.Key
 		}
 
 		expectItem struct {
-			value  graph.Value
+			value  string
 			params map[graph.Parameter]graph.Segment
 			tail   []graph.Segment
 		}
@@ -228,7 +228,7 @@ func TestTreeSearchSuccess(t *testing.T) {
 	type expectF func(*expectItem)
 
 	var (
-		expectValue = func(val graph.Value) expectF {
+		expectValue = func(val string) expectF {
 			return func(ei *expectItem) { ei.value = val }
 		}
 
@@ -245,7 +245,7 @@ func TestTreeSearchSuccess(t *testing.T) {
 			return func(ei *expectItem) { ei.tail = tail }
 		}
 
-		add = func(val graph.Value, keys ...graph.Key) addItem {
+		add = func(val string, keys ...graph.Key) addItem {
 			return addItem{value: val, keys: keys}
 		}
 
