@@ -51,7 +51,8 @@ func (wes *wildcardEdgeSet) add(e edgeWildcard, keys []Key, val *nodeValue) erro
 
 func (wes *wildcardEdgeSet) result(segs, paramVals []Segment) *Result {
 	res := wes.term.result(paramVals)
-	if res != nil {
+
+	if res != nil && len(segs) > 0 {
 		res.Tail = segs
 	}
 

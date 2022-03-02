@@ -228,19 +228,29 @@ func TestTreeSearchSuccess(t *testing.T) {
 	type expectF func(*expectItem)
 
 	var (
-		expectValue = func(val graph.Value) expectF { return func(ei *expectItem) { ei.value = val } }
-		expectParam = func(k graph.Parameter, v graph.Segment) expectF { return func(ei *expectItem) { ei.params[k] = v } }
-		expectTail  = func(tail ...graph.Segment) expectF { return func(ei *expectItem) { ei.tail = tail } }
+		expectValue = func(val graph.Value) expectF {
+			return func(ei *expectItem) { ei.value = val }
+		}
 
-		add = func(val graph.Value, keys ...graph.Key) addItem { return addItem{value: val, keys: keys} }
+		expectParam = func(k graph.Parameter, v graph.Segment) expectF {
+			return func(ei *expectItem) {
+				if ei.params == nil {
+					ei.params = make(map[graph.Parameter]graph.Segment)
+				}
+				ei.params[k] = v
+			}
+		}
+
+		expectTail = func(tail ...graph.Segment) expectF {
+			return func(ei *expectItem) { ei.tail = tail }
+		}
+
+		add = func(val graph.Value, keys ...graph.Key) addItem {
+			return addItem{value: val, keys: keys}
+		}
 
 		search = func(query ...graph.Segment) func(...expectF) searchItem {
-			item := searchItem{
-				query: query,
-				expect: expectItem{
-					params: make(map[graph.Parameter]graph.Segment),
-				},
-			}
+			item := searchItem{query: query}
 
 			return func(expectations ...expectF) searchItem {
 				for _, e := range expectations {
@@ -309,18 +319,15 @@ func TestTreeSearchSuccess(t *testing.T) {
 					expectValue("val0"),
 				),
 				search("a")(
-					// TODO: Fails due to nil <-> []Segment{} mismatch
 					expectValue("val1"),
 					expectParam("param1", "a"),
 				),
 				search("a", "b")(
-					// TODO: Fails due to nil <-> []Segment{} mismatch
 					expectValue("val2"),
 					expectParam("param1", "a"),
 					expectParam("param2", "b"),
 				),
 				search("a", "b", "c")(
-					// TODO: Fails due to nil <-> []Segment{} mismatch
 					expectValue("val3"),
 					expectParam("param1", "a"),
 					expectParam("param2", "b"),

@@ -43,13 +43,14 @@ type nodeValue struct {
 }
 
 func (nv nodeValue) result(paramVals []Segment) *Result {
-	res := &Result{
-		Parameters: make(map[Parameter]Segment),
-		Value:      nv.value,
-	}
+	res := &Result{Value: nv.value}
 
-	for i, key := range nv.parameterKeys {
-		res.Parameters[key] = paramVals[i]
+	if len(nv.parameterKeys) > 0 {
+		res.Parameters = make(map[Parameter]Segment)
+
+		for i, key := range nv.parameterKeys {
+			res.Parameters[key] = paramVals[i]
+		}
 	}
 
 	return res
