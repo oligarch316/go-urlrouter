@@ -29,6 +29,14 @@ func (te *terminalEdge[V]) result(paramVals []Segment) *Result[V] {
 	return te.val.result(paramVals)
 }
 
+func (te *terminalEdge[V]) values() []V {
+	if te.val == nil {
+		return nil
+	}
+
+	return []V{te.val.value}
+}
+
 type valueEdgeSet[V any] struct{ term terminalEdge[V] }
 
 func (ves *valueEdgeSet[V]) add(e edgeValue, val *nodeValue[V]) error {
@@ -37,6 +45,10 @@ func (ves *valueEdgeSet[V]) add(e edgeValue, val *nodeValue[V]) error {
 
 func (ves *valueEdgeSet[V]) result(paramVals []Segment) *Result[V] {
 	return ves.term.result(paramVals)
+}
+
+func (ves *valueEdgeSet[V]) values() []V {
+	return ves.term.values()
 }
 
 type wildcardEdgeSet[V any] struct{ term terminalEdge[V] }
@@ -57,6 +69,10 @@ func (wes *wildcardEdgeSet[V]) result(segs, paramVals []Segment) *Result[V] {
 	}
 
 	return res
+}
+
+func (wes *wildcardEdgeSet[V]) values() []V {
+	return wes.term.values()
 }
 
 type constantEdgeSet[V any] map[edgeConstant]*nodeConstant[V]
@@ -84,6 +100,16 @@ func (ces constantEdgeSet[V]) search(segs, paramVals []Segment) *Result[V] {
 	}
 
 	return node.search(tail, paramVals)
+}
+
+func (ces constantEdgeSet[V]) values() []V {
+	var res []V
+
+	for _, node := range ces {
+		res = append(res, node.values()...)
+	}
+
+	return res
 }
 
 type parameterEdgeSet[V any] struct {
@@ -152,4 +178,14 @@ func (pes parameterEdgeSet[V]) search(segs, paramVals []Segment) *Result[V] {
 	}
 
 	return nil
+}
+
+func (pes parameterEdgeSet[V]) values() []V {
+	var res []V
+
+	for _, node := range pes.nMap {
+		res = append(res, node.values()...)
+	}
+
+	return res
 }
