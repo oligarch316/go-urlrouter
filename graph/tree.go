@@ -9,3 +9,7 @@ func (t *Tree[V]) Add(val V, keys ...Key) error {
 func (t *Tree[V]) Search(segs ...Segment) *Result[V] {
 	return t.root.search(segs, nil)
 }
+
+func (t *Tree[V]) Values() []V {
+	return t.root.values()
+}

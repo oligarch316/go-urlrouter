@@ -103,6 +103,15 @@ func (nc nodeConstant[V]) search(segs, paramVals []Segment) *Result[V] {
 	return nc.wildcardEdges.result(segs, paramVals)
 }
 
+func (nc nodeConstant[V]) values() []V {
+	res := nc.valueEdges.values()
+	res = append(res, nc.constantEdges.values()...)
+	res = append(res, nc.parameterEdges.values()...)
+	res = append(res, nc.wildcardEdges.values()...)
+
+	return res
+}
+
 type nodeParameter[V any] struct {
 	constantEdges constantEdgeSet[V]
 	valueEdges    valueEdgeSet[V]
@@ -137,4 +146,12 @@ func (np nodeParameter[V]) searchStatic(segs, paramVals []Segment) *Result[V] {
 
 func (np nodeParameter[V]) searchWild(segs, paramVals []Segment) *Result[V] {
 	return np.wildcardEdges.result(segs, paramVals)
+}
+
+func (np nodeParameter[V]) values() []V {
+	res := np.valueEdges.values()
+	res = append(res, np.constantEdges.values()...)
+	res = append(res, np.wildcardEdges.values()...)
+
+	return res
 }
