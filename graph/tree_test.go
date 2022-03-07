@@ -6,70 +6,71 @@ import (
 	"testing"
 
 	"github.com/oligarch316/go-urlrouter/graph"
+	"github.com/oligarch316/go-urlrouter/graph/memoized"
 	"github.com/stretchr/testify/assert"
 )
 
-type Action struct {
-	name string
-	data []string
-}
+type stringerFunc func() string
 
-func (a Action) String() string {
-	dataStr := "<empty>"
-	if len(a.data) > 0 {
-		dataStr = strings.Join(a.data, "→")
+func (sf stringerFunc) String() string { return sf() }
+
+type stringerList []fmt.Stringer
+
+func (sl stringerList) String() string {
+	strs := make([]string, len(sl))
+	for i, item := range sl {
+		strs[i] = item.String()
 	}
-
-	return fmt.Sprintf("%s %s", a.name, dataStr)
-}
-
-type Log []Action
-
-func (l Log) Title(info ...string) string {
-	strs := append(info, "--------", "actions:", l.String())
 	return strings.Join(strs, "\n")
 }
 
-func (l Log) String() string {
-	if len(l) == 0 {
-		return "> <no actions>"
+func info(name string, data interface{}) stringerFunc {
+	return func() string {
+		return fmt.Sprintf("--------\n%s:\n%s", name, data)
 	}
-
-	res := "> " + l[0].String()
-	for _, action := range l[1:] {
-		res += "\n> "
-		res += action.String()
-	}
-	return res
 }
 
-type LoggedTree struct {
-	tree graph.Tree[string]
-	Log
+type TestTree struct{ memoized.Tree[string] }
+
+func (tt TestTree) String() string {
+	var (
+		strs  []string
+		memos = tt.Memos()
+	)
+
+	if len(memos) == 0 {
+		return "<empty>"
+	}
+
+	for _, memo := range memos {
+		strs = append(strs, "> "+memo.String())
+	}
+
+	return strings.Join(strs, "\n")
 }
 
-func (lt *LoggedTree) Add(val string, keys ...graph.Key) error {
-	action := Action{name: "add"}
-	for _, key := range keys {
-		str := "<nil>"
-		if key != nil {
-			str = key.String()
+func (tt *TestTree) Add(val string, keys ...graph.Key) (error, fmt.Stringer) {
+	var (
+		err     = tt.Tree.Add(val, keys...)
+		addInfo = stringerList{
+			info("Add", "> "+graph.FormatPath(val, keys...)),
+			info("Tree", tt),
 		}
+	)
 
-		action.data = append(action.data, str)
-	}
-
-	lt.Log = append(lt.Log, action)
-	return lt.tree.Add(val, keys...)
+	return err, addInfo
 }
 
-func (lt *LoggedTree) Search(segs ...graph.Segment) (*graph.Result[string], Log) {
-	action := Action{name: "search"}
-	for _, seg := range segs {
-		action.data = append(action.data, string(seg))
-	}
+func (tt *TestTree) Search(segs ...graph.Segment) (*graph.Result[string], fmt.Stringer) {
+	var (
+		res        = tt.Tree.Search(segs...)
+		searchInfo = stringerList{
+			info("Search", "> "+graph.FormatQuery(segs...)),
+			info("Tree", tt),
+		}
+	)
 
-	return lt.tree.Search(segs...), append(lt.Log, action)
+	return res, searchInfo
 }
 
 func TestTreeAddError(t *testing.T) {
@@ -94,9 +95,10 @@ func TestTreeAddError(t *testing.T) {
 		}
 
 		for _, subtest := range subtests {
-			var tree LoggedTree
+			var tree TestTree
 
-			assert.ErrorIs(t, tree.Add("someVal", subtest...), graph.ErrNilKey, tree.Title())
+			err, info := tree.Add("someVal", subtest...)
+			assert.ErrorIs(t, err, graph.ErrNilKey, info)
 		}
 	})
 
@@ -126,15 +128,16 @@ func TestTreeAddError(t *testing.T) {
 
 		for _, subtest := range subtests {
 			var (
-				tree      LoggedTree
+				tree      TestTree
 				targetErr graph.InvalidContinuationError
 			)
 
-			if !assert.ErrorAs(t, tree.Add("someVal", subtest.keys...), &targetErr, tree.Title()) {
+			err, info := tree.Add("someVal", subtest.keys...)
+			if !assert.ErrorAs(t, err, &targetErr, "check error\n%s", info) {
 				continue
 			}
 
-			assert.Equal(t, subtest.expectedContinuation, targetErr.Continuation, tree.Title())
+			assert.Equal(t, subtest.expectedContinuation, targetErr.Continuation, "check continuation\n%s", info)
 		}
 	})
 
@@ -172,19 +175,21 @@ func TestTreeAddError(t *testing.T) {
 
 		for _, subtest := range subtests {
 			var (
-				tree      LoggedTree
+				tree      TestTree
 				targetErr graph.DuplicateValueError[string]
 			)
 
-			if !assert.NoError(t, tree.Add("firstVal", subtest.first...), tree.Title()) {
+			err, info := tree.Add("firstVal", subtest.first...)
+			if !assert.NoError(t, err, "check first add error\n%s", info) {
 				continue
 			}
 
-			if !assert.ErrorAs(t, tree.Add("secondVal", subtest.second...), &targetErr, tree.Title()) {
+			err, info = tree.Add("secondVal", subtest.second...)
+			if !assert.ErrorAs(t, err, &targetErr, "check second add error\n%s", info) {
 				continue
 			}
 
-			assert.Equal(t, "firstVal", targetErr.ExistingValue, tree.Title())
+			assert.Equal(t, "firstVal", targetErr.ExistingValue, "check existing value", info)
 		}
 	})
 }
@@ -370,27 +375,28 @@ func TestTreeSearchSuccess(t *testing.T) {
 
 L:
 	for _, subtest := range subtests {
-		var tree LoggedTree
+		var tree TestTree
 
 		for _, item := range subtest.addItems {
-			if !assert.NoError(t, tree.Add(item.value, item.keys...), tree.Title()) {
+			err, info := tree.Add(item.value, item.keys...)
+
+			if !assert.NoError(t, err, info) {
 				continue L
 			}
 		}
 
 		for _, item := range subtest.searchItems {
-			result, log := tree.Search(item.query...)
-
-			if !assert.NotNil(t, result, log.Title()) {
+			result, info := tree.Search(item.query...)
+			if !assert.NotNil(t, result, "check nil\n%s", info) {
 				continue
 			}
 
-			if !assert.Equal(t, item.expect.value, result.Value, log.Title("check value")) {
+			if !assert.Equal(t, item.expect.value, result.Value, "check value\n%s", info) {
 				continue
 			}
 
-			assert.Equal(t, item.expect.params, result.Parameters, log.Title("check params"))
-			assert.Equal(t, item.expect.tail, result.Tail, log.Title("check tail"))
+			assert.Equal(t, item.expect.params, result.Parameters, "check params\n%s", info)
+			assert.Equal(t, item.expect.tail, result.Tail, "check tail\n%s", info)
 		}
 	}
 }

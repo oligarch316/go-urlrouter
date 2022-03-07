@@ -16,8 +16,16 @@ type Tree[V any] struct {
 func (t *Tree[V]) Memos() []Memo[V] { return t.tree.Values() }
 
 func (t *Tree[V]) Add(val V, keys ...graph.Key) error {
-	memo := Memo[V]{Keys: keys, Value: val}
-	return t.tree.Add(memo, keys...)
+	var (
+		memo = Memo[V]{Keys: keys, Value: val}
+		err  = t.tree.Add(memo, keys...)
+	)
+
+	if dupErr, ok := err.(graph.DuplicateValueError[Memo[V]]); ok {
+		err = graph.DuplicateValueError[V]{ExistingValue: dupErr.ExistingValue.Value}
+	}
+
+	return err
 }
 
 func (t *Tree[V]) Search(segs ...graph.Segment) *graph.Result[V] {
