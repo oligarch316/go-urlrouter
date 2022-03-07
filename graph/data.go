@@ -5,16 +5,9 @@ import (
 	"strings"
 )
 
-// TODO: These should become generic constraints
-// - Tricky without non-constraint sum types
-type (
-	Parameter string
-	Segment   string
-)
-
 type Result[V any] struct {
-	Parameters map[Parameter]Segment
-	Tail       []Segment
+	Parameters map[string]string
+	Tail       []string
 	Value      V
 }
 
@@ -24,8 +17,8 @@ type (
 		sealedKey()
 	}
 
-	KeyConstant  Segment
-	KeyParameter Parameter
+	KeyConstant  string
+	KeyParameter string
 	KeyWildcard  struct{}
 )
 
@@ -34,8 +27,8 @@ func (KeyParameter) sealedKey() {}
 func (KeyWildcard) sealedKey()  {}
 
 func (KeyWildcard) String() string     { return "wild" }
-func (kc KeyConstant) String() string  { return fmt.Sprintf("const(%s)", Segment(kc)) }
-func (kp KeyParameter) String() string { return fmt.Sprintf("param(%s)", Parameter(kp)) }
+func (kc KeyConstant) String() string  { return fmt.Sprintf("const(%s)", string(kc)) }
+func (kp KeyParameter) String() string { return fmt.Sprintf("param(%s)", string(kp)) }
 
 type (
 	edge interface {
@@ -43,8 +36,8 @@ type (
 		sealedEdge()
 	}
 
-	edgeConstant  Segment
-	edgeParameter []Parameter
+	edgeConstant  string
+	edgeParameter []string
 	edgeValue     struct{}
 	edgeWildcard  struct{}
 )
@@ -56,7 +49,7 @@ func (edgeWildcard) sealedEdge()  {}
 
 func (ep edgeValue) String() string    { return "value" }
 func (ew edgeWildcard) String() string { return "wild" }
-func (ec edgeConstant) String() string { return fmt.Sprintf("const(%s)", Segment(ec)) }
+func (ec edgeConstant) String() string { return fmt.Sprintf("const(%s)", string(ec)) }
 
 func (ep edgeParameter) String() string {
 	strs := make([]string, len(ep))

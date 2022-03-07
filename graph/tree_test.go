@@ -61,7 +61,7 @@ func (tt *TestTree) Add(val string, keys ...graph.Key) (error, fmt.Stringer) {
 	return err, addInfo
 }
 
-func (tt *TestTree) Search(segs ...graph.Segment) (*graph.Result[string], fmt.Stringer) {
+func (tt *TestTree) Search(segs ...string) (*graph.Result[string], fmt.Stringer) {
 	var (
 		res        = tt.Tree.Search(segs...)
 		searchInfo = stringerList{
@@ -220,12 +220,12 @@ func TestTreeSearchSuccess(t *testing.T) {
 
 		expectItem struct {
 			value  string
-			params map[graph.Parameter]graph.Segment
-			tail   []graph.Segment
+			params map[string]string
+			tail   []string
 		}
 
 		searchItem struct {
-			query  []graph.Segment
+			query  []string
 			expect expectItem
 		}
 	)
@@ -237,16 +237,16 @@ func TestTreeSearchSuccess(t *testing.T) {
 			return func(ei *expectItem) { ei.value = val }
 		}
 
-		expectParam = func(k graph.Parameter, v graph.Segment) expectF {
+		expectParam = func(k string, v string) expectF {
 			return func(ei *expectItem) {
 				if ei.params == nil {
-					ei.params = make(map[graph.Parameter]graph.Segment)
+					ei.params = make(map[string]string)
 				}
 				ei.params[k] = v
 			}
 		}
 
-		expectTail = func(tail ...graph.Segment) expectF {
+		expectTail = func(tail ...string) expectF {
 			return func(ei *expectItem) { ei.tail = tail }
 		}
 
@@ -254,7 +254,7 @@ func TestTreeSearchSuccess(t *testing.T) {
 			return addItem{value: val, keys: keys}
 		}
 
-		search = func(query ...graph.Segment) func(...expectF) searchItem {
+		search = func(query ...string) func(...expectF) searchItem {
 			item := searchItem{query: query}
 
 			return func(expectations ...expectF) searchItem {

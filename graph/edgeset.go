@@ -21,7 +21,7 @@ func (te *terminalEdge[V]) add(val *nodeValue[V]) error {
 	return nil
 }
 
-func (te *terminalEdge[V]) result(paramVals []Segment) *Result[V] {
+func (te *terminalEdge[V]) result(paramVals []string) *Result[V] {
 	if te.val == nil {
 		return nil
 	}
@@ -43,7 +43,7 @@ func (ves *valueEdgeSet[V]) add(e edgeValue, val *nodeValue[V]) error {
 	return ves.term.add(val)
 }
 
-func (ves *valueEdgeSet[V]) result(paramVals []Segment) *Result[V] {
+func (ves *valueEdgeSet[V]) result(paramVals []string) *Result[V] {
 	return ves.term.result(paramVals)
 }
 
@@ -61,7 +61,7 @@ func (wes *wildcardEdgeSet[V]) add(e edgeWildcard, keys []Key, val *nodeValue[V]
 	return wes.term.add(val)
 }
 
-func (wes *wildcardEdgeSet[V]) result(segs, paramVals []Segment) *Result[V] {
+func (wes *wildcardEdgeSet[V]) result(segs, paramVals []string) *Result[V] {
 	res := wes.term.result(paramVals)
 
 	if res != nil && len(segs) > 0 {
@@ -91,7 +91,7 @@ func (ces *constantEdgeSet[V]) add(e edgeConstant, keys []Key, val *nodeValue[V]
 	return node.add(keys, val)
 }
 
-func (ces constantEdgeSet[V]) search(segs, paramVals []Segment) *Result[V] {
+func (ces constantEdgeSet[V]) search(segs, paramVals []string) *Result[V] {
 	head, tail := edgeConstant(segs[0]), segs[1:]
 
 	node, ok := ces[head]
@@ -145,7 +145,7 @@ func (pes *parameterEdgeSet[V]) add(e edgeParameter, keys []Key, val *nodeValue[
 	return node.add(keys, val)
 }
 
-func (pes parameterEdgeSet[V]) search(segs, paramVals []Segment) *Result[V] {
+func (pes parameterEdgeSet[V]) search(segs, paramVals []string) *Result[V] {
 	var (
 		nSegs        = len(segs)
 		wildSearches []func() *Result[V]
