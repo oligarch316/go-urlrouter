@@ -7,9 +7,7 @@ type Path[V any] struct {
 	Value V
 }
 
-func (p Path[_]) String() string {
-	return "TODO"
-}
+func (p Path[_]) String() string { return graph.FormatPath(p.Value, p.Keys...) }
 
 type Tree[V any] struct {
 	tree graph.Tree[Path[V]]
