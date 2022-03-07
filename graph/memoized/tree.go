@@ -28,7 +28,7 @@ func (t *Tree[V]) Add(val V, keys ...graph.Key) error {
 	return err
 }
 
-func (t *Tree[V]) Search(segs ...graph.Segment) *graph.Result[V] {
+func (t *Tree[V]) Search(segs ...string) *graph.Result[V] {
 	if memoResult := t.tree.Search(segs...); memoResult != nil {
 		return &graph.Result[V]{
 			Parameters: memoResult.Parameters,

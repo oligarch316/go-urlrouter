@@ -22,14 +22,7 @@ func FormatValue(val interface{}) string {
 	return fmt.Sprintf("value(%v)", val)
 }
 
-func FormatQuery(segs ...Segment) string {
-	segChain := make([]string, len(segs))
-	for i, seg := range segs {
-		segChain[i] = string(seg)
-	}
-
-	return formatChain(segChain)
-}
+func FormatQuery(segs ...string) string { return formatChain(segs) }
 
 func FormatPath(val interface{}, keys ...Key) string {
 	keyChain := make([]string, len(keys))

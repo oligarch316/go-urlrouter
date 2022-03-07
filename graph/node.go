@@ -18,7 +18,7 @@ func popEdge(keys []Key) (edge, []Key, error) {
 
 		switch t := key.(type) {
 		case KeyParameter:
-			paramEdge = append(paramEdge, Parameter(t))
+			paramEdge = append(paramEdge, string(t))
 		case KeyConstant:
 			if i == 0 {
 				return edgeConstant(t), keys[1:], nil
@@ -38,15 +38,15 @@ func popEdge(keys []Key) (edge, []Key, error) {
 }
 
 type nodeValue[V any] struct {
-	parameterKeys []Parameter
+	parameterKeys []string
 	value         V
 }
 
-func (nv nodeValue[V]) result(paramVals []Segment) *Result[V] {
+func (nv nodeValue[V]) result(paramVals []string) *Result[V] {
 	res := &Result[V]{Value: nv.value}
 
 	if len(nv.parameterKeys) > 0 {
-		res.Parameters = make(map[Parameter]Segment)
+		res.Parameters = make(map[string]string)
 
 		for i, key := range nv.parameterKeys {
 			res.Parameters[key] = paramVals[i]
@@ -83,7 +83,7 @@ func (nc *nodeConstant[V]) add(keys []Key, val *nodeValue[V]) error {
 	return internalErrorf("constant node: invalid edge type %T: %s", head, head)
 }
 
-func (nc nodeConstant[V]) search(segs, paramVals []Segment) *Result[V] {
+func (nc nodeConstant[V]) search(segs, paramVals []string) *Result[V] {
 	if len(segs) < 1 {
 		if res := nc.valueEdges.result(paramVals); res != nil {
 			return res
@@ -136,7 +136,7 @@ func (np *nodeParameter[V]) add(keys []Key, val *nodeValue[V]) error {
 	return internalErrorf("parameter node: invalid edge type %T: %s", head, head)
 }
 
-func (np nodeParameter[V]) searchStatic(segs, paramVals []Segment) *Result[V] {
+func (np nodeParameter[V]) searchStatic(segs, paramVals []string) *Result[V] {
 	if len(segs) < 1 {
 		return np.valueEdges.result(paramVals)
 	}
@@ -144,7 +144,7 @@ func (np nodeParameter[V]) searchStatic(segs, paramVals []Segment) *Result[V] {
 	return np.constantEdges.search(segs, paramVals)
 }
 
-func (np nodeParameter[V]) searchWild(segs, paramVals []Segment) *Result[V] {
+func (np nodeParameter[V]) searchWild(segs, paramVals []string) *Result[V] {
 	return np.wildcardEdges.result(segs, paramVals)
 }
 
