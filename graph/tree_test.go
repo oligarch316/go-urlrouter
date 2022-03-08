@@ -73,7 +73,7 @@ func (tt *TestTree) Search(segs ...string) (*graph.Result[string], fmt.Stringer)
 	return res, searchInfo
 }
 
-func TestTreeAddError(t *testing.T) {
+func TestGraphTreeAddError(t *testing.T) {
 	var (
 		a = graph.KeyConstant("A")
 		b = graph.KeyConstant("B")
@@ -194,12 +194,12 @@ func TestTreeAddError(t *testing.T) {
 	})
 }
 
-func TestTreeSearchFailure(t *testing.T) {
+func TestGraphTreeSearchFailure(t *testing.T) {
 	// TODO
 	t.Skip("TODO")
 }
 
-func TestTreeSearchSuccess(t *testing.T) {
+func TestGraphTreeSearchSuccess(t *testing.T) {
 	var (
 		a = graph.KeyConstant("a")
 		b = graph.KeyConstant("b")

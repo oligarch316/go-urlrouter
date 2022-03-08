@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNodeAddInternalError(t *testing.T) {
+func TestGraphNodeAddInternalError(t *testing.T) {
 	var (
 		node nodeParameter[string]
 		keys = []Key{KeyParameter("someParam")}
@@ -17,7 +17,7 @@ func TestNodeAddInternalError(t *testing.T) {
 	assert.ErrorIs(t, node.add(keys, &val), ErrInternal)
 }
 
-func TestNodePopEdgeError(t *testing.T) {
+func TestGraphNodePopEdgeError(t *testing.T) {
 	// TODO: Remove this? It's checked in TestTreeAddError/nil_key
 
 	keys := []Key{nil}
@@ -26,7 +26,7 @@ func TestNodePopEdgeError(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNilKey)
 }
 
-func TestNodePopEdgeSuccess(t *testing.T) {
+func TestGraphNodePopEdgeSuccess(t *testing.T) {
 	var (
 		a = KeyConstant("constA")
 		b = KeyConstant("constB")
