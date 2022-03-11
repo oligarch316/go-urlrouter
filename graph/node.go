@@ -20,10 +20,10 @@ func (nv nodeValue[V]) result(paramVals []string) *Result[V] {
 }
 
 type nodeConstant[V any] struct {
-	constantEdges  constantEdgeSet[V]
-	parameterEdges parameterEdgeSet[V]
-	valueEdges     valueEdgeSet[V]
-	wildcardEdges  wildcardEdgeSet[V]
+	constantEdges  edgeSetConstant[V]
+	parameterEdges edgeSetParameter[V]
+	valueEdges     edgeSetValue[V]
+	wildcardEdges  edgeSetWildcard[V]
 }
 
 func (nc *nodeConstant[V]) add(keys []Key, val *nodeValue[V]) error {
@@ -76,9 +76,9 @@ func (nc nodeConstant[V]) values() []V {
 }
 
 type nodeParameter[V any] struct {
-	constantEdges constantEdgeSet[V]
-	valueEdges    valueEdgeSet[V]
-	wildcardEdges wildcardEdgeSet[V]
+	constantEdges edgeSetConstant[V]
+	valueEdges    edgeSetValue[V]
+	wildcardEdges edgeSetWildcard[V]
 }
 
 func (np *nodeParameter[V]) add(keys []Key, val *nodeValue[V]) error {
