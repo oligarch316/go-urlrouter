@@ -1,42 +1,5 @@
 package graph
 
-import "errors"
-
-var ErrNilKey = errors.New("nil key")
-
-func popEdge(keys []Key) (edge, []Key, error) {
-	if len(keys) < 1 {
-		return edgeValue{}, nil, nil
-	}
-
-	var paramEdge edgeParameter
-
-	for i, key := range keys {
-		if key == nil {
-			return nil, nil, ErrNilKey
-		}
-
-		switch t := key.(type) {
-		case KeyParameter:
-			paramEdge = append(paramEdge, string(t))
-		case KeyConstant:
-			if i == 0 {
-				return edgeConstant(t), keys[1:], nil
-			}
-
-			return paramEdge, keys[i:], nil
-		case KeyWildcard:
-			if i == 0 {
-				return edgeWildcard{}, keys[1:], nil
-			}
-
-			return paramEdge, keys[i:], nil
-		}
-	}
-
-	return paramEdge, nil, nil
-}
-
 type nodeValue[V any] struct {
 	parameterKeys []string
 	value         V
