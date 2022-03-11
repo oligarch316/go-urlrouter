@@ -1,12 +1,12 @@
-package graph_test
+package priority_test
 
 import (
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/oligarch316/go-urlrouter/graph"
 	"github.com/oligarch316/go-urlrouter/graph/memoized"
+	"github.com/oligarch316/go-urlrouter/graph/priority"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,11 +51,11 @@ func (tt TestTree) String() string {
 	return strings.Join(strs, "\n")
 }
 
-func (tt *TestTree) Add(val string, keys ...graph.Key) (error, fmt.Stringer) {
+func (tt *TestTree) Add(val string, keys ...priority.Key) (error, fmt.Stringer) {
 	var (
 		err     = tt.Tree.Add(val, keys...)
 		addInfo = stringerList{
-			info("Add", "> "+graph.FormatPath(val, keys...)),
+			info("Add", "> "+priority.FormatPath(val, keys...)),
 			info("Tree", tt),
 		}
 	)
@@ -63,11 +63,11 @@ func (tt *TestTree) Add(val string, keys ...graph.Key) (error, fmt.Stringer) {
 	return err, addInfo
 }
 
-func (tt *TestTree) Search(segs ...string) (*graph.Result[string], fmt.Stringer) {
+func (tt *TestTree) Search(segs ...string) (*priority.Result[string], fmt.Stringer) {
 	var (
 		res        = tt.Tree.Search(segs...)
 		searchInfo = stringerList{
-			info("Search", "> "+graph.FormatQuery(segs...)),
+			info("Search", "> "+priority.FormatQuery(segs...)),
 			info("Tree", tt),
 		}
 	)
@@ -77,19 +77,19 @@ func (tt *TestTree) Search(segs ...string) (*graph.Result[string], fmt.Stringer)
 
 func TestGraphTreeAddError(t *testing.T) {
 	var (
-		a = graph.KeyConstant("A")
-		b = graph.KeyConstant("B")
-		c = graph.KeyConstant("C")
+		a = priority.KeyConstant("A")
+		b = priority.KeyConstant("B")
+		c = priority.KeyConstant("C")
 
-		param1 = graph.KeyParameter("param1")
-		param2 = graph.KeyParameter("param2")
-		param3 = graph.KeyParameter("param3")
+		param1 = priority.KeyParameter("param1")
+		param2 = priority.KeyParameter("param2")
+		param3 = priority.KeyParameter("param3")
 
-		wild graph.KeyWildcard
+		wild priority.KeyWildcard
 	)
 
 	t.Run("nil key", func(t *testing.T) {
-		subtests := [][]graph.Key{
+		subtests := [][]priority.Key{
 			{nil},
 			{a, nil},
 			{param1, nil},
@@ -100,38 +100,38 @@ func TestGraphTreeAddError(t *testing.T) {
 			var tree TestTree
 
 			err, info := tree.Add("someVal", subtest...)
-			assert.ErrorIs(t, err, graph.ErrNilKey, info)
+			assert.ErrorIs(t, err, priority.ErrNilKey, info)
 		}
 	})
 
 	t.Run("non-terminal wildcard", func(t *testing.T) {
-		subtests := []struct{ keys, expectedContinuation []graph.Key }{
+		subtests := []struct{ keys, expectedContinuation []priority.Key }{
 			{
-				keys:                 []graph.Key{wild, a},
-				expectedContinuation: []graph.Key{a},
+				keys:                 []priority.Key{wild, a},
+				expectedContinuation: []priority.Key{a},
 			},
 			{
-				keys:                 []graph.Key{wild, param1},
-				expectedContinuation: []graph.Key{param1},
+				keys:                 []priority.Key{wild, param1},
+				expectedContinuation: []priority.Key{param1},
 			},
 			{
-				keys:                 []graph.Key{wild, wild},
-				expectedContinuation: []graph.Key{wild},
+				keys:                 []priority.Key{wild, wild},
+				expectedContinuation: []priority.Key{wild},
 			},
 			{
-				keys:                 []graph.Key{a, wild, b, c},
-				expectedContinuation: []graph.Key{b, c},
+				keys:                 []priority.Key{a, wild, b, c},
+				expectedContinuation: []priority.Key{b, c},
 			},
 			{
-				keys:                 []graph.Key{param1, wild, b, c},
-				expectedContinuation: []graph.Key{b, c},
+				keys:                 []priority.Key{param1, wild, b, c},
+				expectedContinuation: []priority.Key{b, c},
 			},
 		}
 
 		for _, subtest := range subtests {
 			var (
 				tree      TestTree
-				targetErr graph.InvalidContinuationError
+				targetErr priority.InvalidContinuationError
 			)
 
 			err, info := tree.Add("someVal", subtest.keys...)
@@ -144,41 +144,41 @@ func TestGraphTreeAddError(t *testing.T) {
 	})
 
 	t.Run("duplicate", func(t *testing.T) {
-		subtests := []struct{ first, second []graph.Key }{
+		subtests := []struct{ first, second []priority.Key }{
 			{
-				first:  []graph.Key{wild},
-				second: []graph.Key{wild},
+				first:  []priority.Key{wild},
+				second: []priority.Key{wild},
 			},
 			{
-				first:  []graph.Key{a, b, c},
-				second: []graph.Key{a, b, c},
+				first:  []priority.Key{a, b, c},
+				second: []priority.Key{a, b, c},
 			},
 			{
-				first:  []graph.Key{a, b, c, wild},
-				second: []graph.Key{a, b, c, wild},
+				first:  []priority.Key{a, b, c, wild},
+				second: []priority.Key{a, b, c, wild},
 			},
 			{
-				first:  []graph.Key{param1, param2},
-				second: []graph.Key{param1, param3},
+				first:  []priority.Key{param1, param2},
+				second: []priority.Key{param1, param3},
 			},
 			{
-				first:  []graph.Key{param1, param2, wild},
-				second: []graph.Key{param1, param3, wild},
+				first:  []priority.Key{param1, param2, wild},
+				second: []priority.Key{param1, param3, wild},
 			},
 			{
-				first:  []graph.Key{param1, param2, c},
-				second: []graph.Key{param1, param3, c},
+				first:  []priority.Key{param1, param2, c},
+				second: []priority.Key{param1, param3, c},
 			},
 			{
-				first:  []graph.Key{param1, param2, c, wild},
-				second: []graph.Key{param1, param3, c, wild},
+				first:  []priority.Key{param1, param2, c, wild},
+				second: []priority.Key{param1, param3, c, wild},
 			},
 		}
 
 		for _, subtest := range subtests {
 			var (
 				tree      TestTree
-				targetErr graph.DuplicateValueError[string]
+				targetErr priority.DuplicateValueError[string]
 			)
 
 			err, info := tree.Add("firstVal", subtest.first...)
@@ -203,21 +203,21 @@ func TestGraphTreeSearchFailure(t *testing.T) {
 
 func TestGraphTreeSearchSuccess(t *testing.T) {
 	var (
-		a = graph.KeyConstant("a")
-		b = graph.KeyConstant("b")
-		c = graph.KeyConstant("c")
+		a = priority.KeyConstant("a")
+		b = priority.KeyConstant("b")
+		c = priority.KeyConstant("c")
 
-		param1 = graph.KeyParameter("param1")
-		param2 = graph.KeyParameter("param2")
-		param3 = graph.KeyParameter("param3")
+		param1 = priority.KeyParameter("param1")
+		param2 = priority.KeyParameter("param2")
+		param3 = priority.KeyParameter("param3")
 
-		wild graph.KeyWildcard
+		wild priority.KeyWildcard
 	)
 
 	type (
 		addItem struct {
 			value string
-			keys  []graph.Key
+			keys  []priority.Key
 		}
 
 		expectItem struct {
@@ -252,7 +252,7 @@ func TestGraphTreeSearchSuccess(t *testing.T) {
 			return func(ei *expectItem) { ei.tail = tail }
 		}
 
-		add = func(val string, keys ...graph.Key) addItem {
+		add = func(val string, keys ...priority.Key) addItem {
 			return addItem{value: val, keys: keys}
 		}
 

@@ -1,4 +1,4 @@
-package graph
+package priority
 
 type stateAdd[V any] struct {
 	parameterKeys []string

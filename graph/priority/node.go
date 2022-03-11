@@ -1,4 +1,4 @@
-package graph
+package priority
 
 type nodeValue[V any] struct{ stateAdd[V] }
 
