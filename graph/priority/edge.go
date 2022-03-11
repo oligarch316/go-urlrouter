@@ -1,12 +1,11 @@
 package priority
 
 import (
-	"errors"
 	"fmt"
 	"strings"
-)
 
-var ErrNilKey = errors.New("nil key")
+	"github.com/oligarch316/go-urlrouter/graph"
+)
 
 type (
 	edge interface {
@@ -37,7 +36,7 @@ func (ep edgeParameter) String() string {
 	return fmt.Sprintf("param(%s)", strings.Join(strs, ","))
 }
 
-func popEdge(keys []Key) (edge, []Key, error) {
+func popEdge(keys []graph.Key) (edge, []graph.Key, error) {
 	if len(keys) < 1 {
 		return edgeValue{}, nil, nil
 	}
@@ -46,19 +45,19 @@ func popEdge(keys []Key) (edge, []Key, error) {
 
 	for i, key := range keys {
 		if key == nil {
-			return nil, nil, ErrNilKey
+			return nil, nil, graph.ErrNilKey
 		}
 
 		switch t := key.(type) {
-		case KeyParameter:
+		case graph.KeyParameter:
 			paramEdge = append(paramEdge, string(t))
-		case KeyConstant:
+		case graph.KeyConstant:
 			if i == 0 {
 				return edgeConstant(t), keys[1:], nil
 			}
 
 			return paramEdge, keys[i:], nil
-		case KeyWildcard:
+		case graph.KeyWildcard:
 			if i == 0 {
 				return edgeWildcard{}, keys[1:], nil
 			}

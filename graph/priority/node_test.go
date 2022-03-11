@@ -3,15 +3,16 @@ package priority
 import (
 	"testing"
 
+	"github.com/oligarch316/go-urlrouter/graph"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGraphNodeAddInternalError(t *testing.T) {
 	var (
 		node  nodeParameter[string]
-		keys  = []Key{KeyParameter("someParam")}
+		keys  = []graph.Key{graph.KeyParameter("someParam")}
 		state = stateAdd[string]{value: "someVal"}
 	)
 
-	assert.ErrorIs(t, node.add(keys, state), ErrInternal)
+	assert.ErrorIs(t, node.add(keys, state), graph.ErrInternal)
 }

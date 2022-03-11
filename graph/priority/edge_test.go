@@ -3,28 +3,29 @@ package priority
 import (
 	"testing"
 
+	"github.com/oligarch316/go-urlrouter/graph"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGraphPopEdge(t *testing.T) {
 	var (
-		a = KeyConstant("constA")
-		b = KeyConstant("constB")
-		c = KeyConstant("constB")
+		a = graph.KeyConstant("constA")
+		b = graph.KeyConstant("constB")
+		c = graph.KeyConstant("constB")
 
-		param1 = KeyParameter("paramA")
-		param2 = KeyParameter("paramB")
-		param3 = KeyParameter("paramC")
+		param1 = graph.KeyParameter("paramA")
+		param2 = graph.KeyParameter("paramB")
+		param3 = graph.KeyParameter("paramC")
 
-		wild KeyWildcard
+		wild graph.KeyWildcard
 	)
 
 	subtests := []struct {
 		name         string
-		keys         []Key
+		keys         []graph.Key
 		expectedHead edge
-		expectedTail []Key
+		expectedTail []graph.Key
 	}{
 		{
 			name:         "empty",
@@ -34,39 +35,39 @@ func TestGraphPopEdge(t *testing.T) {
 		},
 		{
 			name:         "all constant",
-			keys:         []Key{a, b, c},
+			keys:         []graph.Key{a, b, c},
 			expectedHead: edgeConstant("constA"),
-			expectedTail: []Key{b, c},
+			expectedTail: []graph.Key{b, c},
 		},
 		{
 			name:         "all parameter",
-			keys:         []Key{param1, param2, param3},
+			keys:         []graph.Key{param1, param2, param3},
 			expectedHead: edgeParameter{"paramA", "paramB", "paramC"},
 			expectedTail: nil,
 		},
 		{
 			name:         "constant first",
-			keys:         []Key{a, param2, param3},
+			keys:         []graph.Key{a, param2, param3},
 			expectedHead: edgeConstant("constA"),
-			expectedTail: []Key{param2, param3},
+			expectedTail: []graph.Key{param2, param3},
 		},
 		{
 			name:         "parameter first (single)",
-			keys:         []Key{param1, b, c},
+			keys:         []graph.Key{param1, b, c},
 			expectedHead: edgeParameter{"paramA"},
-			expectedTail: []Key{b, c},
+			expectedTail: []graph.Key{b, c},
 		},
 		{
 			name:         "parameter first (multi)",
-			keys:         []Key{param1, param2, c},
+			keys:         []graph.Key{param1, param2, c},
 			expectedHead: edgeParameter{"paramA", "paramB"},
-			expectedTail: []Key{c},
+			expectedTail: []graph.Key{c},
 		},
 		{
 			name:         "wildcard first",
-			keys:         []Key{wild, b, c},
+			keys:         []graph.Key{wild, b, c},
 			expectedHead: edgeWildcard{},
-			expectedTail: []Key{b, c},
+			expectedTail: []graph.Key{b, c},
 		},
 	}
 

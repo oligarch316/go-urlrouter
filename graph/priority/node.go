@@ -1,9 +1,25 @@
 package priority
 
+import (
+	"fmt"
+
+	"github.com/oligarch316/go-urlrouter/graph"
+)
+
+type internalError string
+
+func internalErrorf(format string, a ...interface{}) internalError {
+	message := fmt.Sprintf(format, a...)
+	return internalError(message)
+}
+
+func (ie internalError) Error() string        { return string(ie) }
+func (ie internalError) Is(target error) bool { return target == graph.ErrInternal }
+
 type nodeValue[V any] struct{ stateAdd[V] }
 
-func (nv nodeValue[V]) result(parameterValues []string) *Result[V] {
-	res := &Result[V]{Value: nv.value}
+func (nv nodeValue[V]) result(parameterValues []string) *graph.SearchResult[V] {
+	res := &graph.SearchResult[V]{Value: nv.value}
 
 	if len(nv.parameterKeys) > 0 {
 		res.Parameters = make(map[string]string)
@@ -23,7 +39,7 @@ type nodeConstant[V any] struct {
 	wildcardEdges  edgeSetWildcard[V]
 }
 
-func (nc *nodeConstant[V]) add(path []Key, state stateAdd[V]) error {
+func (nc *nodeConstant[V]) add(path []graph.Key, state stateAdd[V]) error {
 	head, tail, err := popEdge(path)
 	if err != nil {
 		return err
@@ -85,7 +101,7 @@ type nodeParameter[V any] struct {
 	wildcardEdges edgeSetWildcard[V]
 }
 
-func (np *nodeParameter[V]) add(path []Key, state stateAdd[V]) error {
+func (np *nodeParameter[V]) add(path []graph.Key, state stateAdd[V]) error {
 	head, tail, err := popEdge(path)
 	if err != nil {
 		return err

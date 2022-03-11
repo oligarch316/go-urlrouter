@@ -1,55 +1,66 @@
 package memoized
 
-import "github.com/oligarch316/go-urlrouter/graph/priority"
+import (
+	"github.com/oligarch316/go-urlrouter/graph"
+	"github.com/oligarch316/go-urlrouter/graph/priority"
+)
 
 type Memo[V any] struct {
-	Path  []priority.Key
+	Path  []graph.Key
 	Value V
 }
 
-func (m Memo[_]) String() string { return priority.FormatPath(m.Value, m.Path...) }
+func (m Memo[_]) String() string { return graph.FormatPath(m.Value, m.Path...) }
 
-type Tree[V any] struct {
-	WithMemo priority.Tree[Memo[V]]
-}
-
-func (t *Tree[V]) Add(value V, path ...priority.Key) error {
-	var (
-		memo = Memo[V]{Path: path, Value: value}
-		err  = t.WithMemo.Add(memo, path...)
-	)
-
-	if dupErr, ok := err.(priority.DuplicateValueError[Memo[V]]); ok {
-		err = priority.DuplicateValueError[V]{ExistingValue: dupErr.ExistingValue.Value}
-	}
-
-	return err
-}
-
-func (t *Tree[V]) Search(searcher priority.Searcher[V], query ...string) bool {
-	memoSearcher := func(memoResult *priority.Result[Memo[V]]) bool {
-		return searcher.VisitSearch(&priority.Result[V]{
+func wrapSearcher[V any](searcher graph.Searcher[V]) graph.Searcher[Memo[V]] {
+	wrapped := func(memoResult *graph.SearchResult[Memo[V]]) bool {
+		return searcher.VisitSearch(&graph.SearchResult[V]{
 			Parameters: memoResult.Parameters,
 			Tail:       memoResult.Tail,
 			Value:      memoResult.Value.Value,
 		})
 	}
 
-	return t.WithMemo.SearchFunc(memoSearcher, query...)
+	return graph.SearcherFunc[Memo[V]](wrapped)
 }
 
-func (t *Tree[V]) SearchFunc(searcher func(result *priority.Result[V]) (done bool), query ...string) bool {
-	return t.SearchFunc(priority.SearcherFunc[V](searcher), query...)
-}
-
-func (t *Tree[V]) Walk(walker priority.Walker[V]) bool {
-	memoWalker := func(memo Memo[V]) bool {
+func wrapWalker[V any](walker graph.Walker[V]) graph.Walker[Memo[V]] {
+	wrapped := func(memo Memo[V]) bool {
 		return walker.VisitWalk(memo.Value)
 	}
 
-	return t.WithMemo.WalkFunc(memoWalker)
+	return graph.WalkerFunc[Memo[V]](wrapped)
+}
+
+type Tree[V any] struct{ Memoized graph.Tree[Memo[V]] }
+
+func New[V any]() *Tree[V] { return &Tree[V]{Memoized: new(priority.Tree[Memo[V]])} }
+
+func (t *Tree[V]) Add(value V, path ...graph.Key) error {
+	var (
+		memo = Memo[V]{Path: path, Value: value}
+		err  = t.Memoized.Add(memo, path...)
+	)
+
+	if dupErr, ok := err.(graph.DuplicateValueError[Memo[V]]); ok {
+		err = graph.DuplicateValueError[V]{ExistingValue: dupErr.ExistingValue.Value}
+	}
+
+	return err
+}
+
+func (t *Tree[V]) Search(searcher graph.Searcher[V], query ...string) bool {
+	return t.Memoized.Search(wrapSearcher(searcher), query...)
+}
+
+func (t *Tree[V]) SearchFunc(searcher func(result *graph.SearchResult[V]) (done bool), query ...string) bool {
+	return t.SearchFunc(graph.SearcherFunc[V](searcher), query...)
+}
+
+func (t *Tree[V]) Walk(walker graph.Walker[V]) bool {
+	return t.Memoized.Walk(wrapWalker(walker))
 }
 
 func (t *Tree[V]) WalkFunc(walker func(value V) (done bool)) bool {
-	return t.WalkFunc(priority.WalkerFunc[V](walker))
+	return t.WalkFunc(graph.WalkerFunc[V](walker))
 }

@@ -1,27 +1,23 @@
 package priority
 
-import "sort"
+import (
+	"sort"
 
-type (
-	DuplicateValueError[V any] struct{ ExistingValue V }
-	InvalidContinuationError   struct{ Continuation []Key }
+	"github.com/oligarch316/go-urlrouter/graph"
 )
-
-func (dve DuplicateValueError[_]) Error() string   { return "dupliate value" }
-func (ice InvalidContinuationError) Error() string { return "invalid continuation" }
 
 type edgeSetTerminal[V any] struct{ node *nodeValue[V] }
 
 func (est *edgeSetTerminal[V]) add(state stateAdd[V]) error {
 	if est.node != nil {
-		return DuplicateValueError[V]{ExistingValue: est.node.value}
+		return graph.DuplicateValueError[V]{ExistingValue: est.node.value}
 	}
 
 	est.node = &nodeValue[V]{state}
 	return nil
 }
 
-func (est edgeSetTerminal[V]) result(parameterValues []string) *Result[V] {
+func (est edgeSetTerminal[V]) result(parameterValues []string) *graph.SearchResult[V] {
 	if est.node == nil {
 		return nil
 	}
@@ -57,9 +53,9 @@ func (esv edgeSetValue[V]) walk(state stateWalk[V]) bool {
 
 type edgeSetWildcard[V any] struct{ term edgeSetTerminal[V] }
 
-func (esw *edgeSetWildcard[V]) add(e edgeWildcard, path []Key, state stateAdd[V]) error {
+func (esw *edgeSetWildcard[V]) add(e edgeWildcard, path []graph.Key, state stateAdd[V]) error {
 	if len(path) > 0 {
-		return InvalidContinuationError{Continuation: path}
+		return graph.InvalidContinuationError{Continuation: path}
 	}
 
 	return esw.term.add(state)
@@ -83,7 +79,7 @@ func (esw edgeSetWildcard[V]) walk(state stateWalk[V]) bool {
 
 type edgeSetConstant[V any] map[edgeConstant]*nodeConstant[V]
 
-func (esc *edgeSetConstant[V]) add(e edgeConstant, path []Key, state stateAdd[V]) error {
+func (esc *edgeSetConstant[V]) add(e edgeConstant, path []graph.Key, state stateAdd[V]) error {
 	if *esc == nil {
 		*esc = make(edgeSetConstant[V])
 	}
@@ -134,7 +130,7 @@ func (esp *edgeSetParameter[V]) createEntry(n int) *nodeParameter[V] {
 	return node
 }
 
-func (esp *edgeSetParameter[V]) add(e edgeParameter, path []Key, state stateAdd[V]) error {
+func (esp *edgeSetParameter[V]) add(e edgeParameter, path []graph.Key, state stateAdd[V]) error {
 	if esp.nMap == nil {
 		esp.nMap = make(map[int]*nodeParameter[V])
 	}

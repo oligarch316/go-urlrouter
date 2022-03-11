@@ -1,5 +1,7 @@
 package priority
 
+import "github.com/oligarch316/go-urlrouter/graph"
+
 type stateAdd[V any] struct {
 	parameterKeys []string
 	value         V
@@ -7,9 +9,9 @@ type stateAdd[V any] struct {
 
 type stateSearch[V any] struct {
 	parameterValues []string
-	visitor         Searcher[V]
+	visitor         graph.Searcher[V]
 }
 
 type stateWalk[V any] struct {
-	visitor Walker[V]
+	visitor graph.Walker[V]
 }
