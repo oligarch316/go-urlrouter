@@ -10,74 +10,80 @@ type (
 func (dve DuplicateValueError[_]) Error() string   { return "dupliate value" }
 func (ice InvalidContinuationError) Error() string { return "invalid continuation" }
 
-type edgeSetTerminal[V any] struct{ val *nodeValue[V] }
+type edgeSetTerminal[V any] struct{ node *nodeValue[V] }
 
-func (est *edgeSetTerminal[V]) add(val *nodeValue[V]) error {
-	if est.val != nil {
-		return DuplicateValueError[V]{ExistingValue: est.val.value}
+func (est *edgeSetTerminal[V]) add(state stateAdd[V]) error {
+	if est.node != nil {
+		return DuplicateValueError[V]{ExistingValue: est.node.value}
 	}
 
-	est.val = val
+	est.node = &nodeValue[V]{state}
 	return nil
 }
 
-func (est *edgeSetTerminal[V]) result(paramVals []string) *Result[V] {
-	if est.val == nil {
+func (est edgeSetTerminal[V]) result(parameterValues []string) *Result[V] {
+	if est.node == nil {
 		return nil
 	}
 
-	return est.val.result(paramVals)
+	return est.node.result(parameterValues)
 }
 
-func (est *edgeSetTerminal[V]) values() []V {
-	if est.val == nil {
-		return nil
+func (est edgeSetTerminal[V]) walk(state stateWalk[V]) bool {
+	if est.node == nil {
+		return false
 	}
 
-	return []V{est.val.value}
+	return state.visitor.VisitWalk(est.node.value)
 }
 
 type edgeSetValue[V any] struct{ term edgeSetTerminal[V] }
 
-func (esv *edgeSetValue[V]) add(e edgeValue, val *nodeValue[V]) error {
-	return esv.term.add(val)
+func (esv *edgeSetValue[V]) add(e edgeValue, state stateAdd[V]) error {
+	return esv.term.add(state)
 }
 
-func (esv *edgeSetValue[V]) result(paramVals []string) *Result[V] {
-	return esv.term.result(paramVals)
+func (esv edgeSetValue[V]) search(state stateSearch[V]) bool {
+	if result := esv.term.result(state.parameterValues); result != nil {
+		return state.visitor.VisitSearch(result)
+	}
+
+	return false
 }
 
-func (esv *edgeSetValue[V]) values() []V {
-	return esv.term.values()
+func (esv edgeSetValue[V]) walk(state stateWalk[V]) bool {
+	return esv.term.walk(state)
 }
 
 type edgeSetWildcard[V any] struct{ term edgeSetTerminal[V] }
 
-func (esw *edgeSetWildcard[V]) add(e edgeWildcard, keys []Key, val *nodeValue[V]) error {
-	if len(keys) > 0 {
-		return InvalidContinuationError{Continuation: keys}
+func (esw *edgeSetWildcard[V]) add(e edgeWildcard, path []Key, state stateAdd[V]) error {
+	if len(path) > 0 {
+		return InvalidContinuationError{Continuation: path}
 	}
 
-	return esw.term.add(val)
+	return esw.term.add(state)
 }
 
-func (esw *edgeSetWildcard[V]) result(segs, paramVals []string) *Result[V] {
-	res := esw.term.result(paramVals)
+func (esw edgeSetWildcard[V]) search(query []string, state stateSearch[V]) bool {
+	if result := esw.term.result(state.parameterValues); result != nil {
+		if len(query) > 0 {
+			result.Tail = query
+		}
 
-	if res != nil && len(segs) > 0 {
-		res.Tail = segs
+		return state.visitor.VisitSearch(result)
 	}
 
-	return res
+	return false
 }
 
-func (esw *edgeSetWildcard[V]) values() []V {
-	return esw.term.values()
+func (esw edgeSetWildcard[V]) walk(state stateWalk[V]) bool {
+	return esw.term.walk(state)
 }
 
 type edgeSetConstant[V any] map[edgeConstant]*nodeConstant[V]
 
-func (esc *edgeSetConstant[V]) add(e edgeConstant, keys []Key, val *nodeValue[V]) error {
+func (esc *edgeSetConstant[V]) add(e edgeConstant, path []Key, state stateAdd[V]) error {
 	if *esc == nil {
 		*esc = make(edgeSetConstant[V])
 	}
@@ -88,28 +94,27 @@ func (esc *edgeSetConstant[V]) add(e edgeConstant, keys []Key, val *nodeValue[V]
 		(*esc)[e] = node
 	}
 
-	return node.add(keys, val)
+	return node.add(path, state)
 }
 
-func (esc edgeSetConstant[V]) search(segs, paramVals []string) *Result[V] {
-	head, tail := edgeConstant(segs[0]), segs[1:]
+func (esc edgeSetConstant[V]) search(query []string, state stateSearch[V]) bool {
+	head, tail := edgeConstant(query[0]), query[1:]
 
-	node, ok := esc[head]
-	if !ok {
-		return nil
+	if node, ok := esc[head]; ok {
+		return node.search(tail, state)
 	}
 
-	return node.search(tail, paramVals)
+	return false
 }
 
-func (esc edgeSetConstant[V]) values() []V {
-	var res []V
-
+func (esc edgeSetConstant[V]) walk(state stateWalk[V]) bool {
 	for _, node := range esc {
-		res = append(res, node.values()...)
+		if node.walk(state) {
+			return true
+		}
 	}
 
-	return res
+	return false
 }
 
 type edgeSetParameter[V any] struct {
@@ -129,12 +134,12 @@ func (esp *edgeSetParameter[V]) createEntry(n int) *nodeParameter[V] {
 	return node
 }
 
-func (esp *edgeSetParameter[V]) add(e edgeParameter, keys []Key, val *nodeValue[V]) error {
+func (esp *edgeSetParameter[V]) add(e edgeParameter, path []Key, state stateAdd[V]) error {
 	if esp.nMap == nil {
 		esp.nMap = make(map[int]*nodeParameter[V])
 	}
 
-	val.parameterKeys = append(val.parameterKeys, e...)
+	state.parameterKeys = append(state.parameterKeys, e...)
 	n := len(e)
 
 	node, ok := esp.nMap[n]
@@ -142,13 +147,13 @@ func (esp *edgeSetParameter[V]) add(e edgeParameter, keys []Key, val *nodeValue[
 		node = esp.createEntry(n)
 	}
 
-	return node.add(keys, val)
+	return node.add(path, state)
 }
 
-func (esp edgeSetParameter[V]) search(segs, paramVals []string) *Result[V] {
+func (esp edgeSetParameter[V]) search(query []string, state stateSearch[V]) bool {
 	var (
-		nSegs        = len(segs)
-		wildSearches []func() *Result[V]
+		nSegs        = len(query)
+		wildSearches []func() bool
 	)
 
 	for _, nParams := range esp.nList {
@@ -157,35 +162,38 @@ func (esp edgeSetParameter[V]) search(segs, paramVals []string) *Result[V] {
 		}
 
 		var (
-			childNode      = esp.nMap[nParams]
-			childSegs      = segs[nParams:]
-			childParamVals = append(paramVals, segs[:nParams]...)
+			childNode  = esp.nMap[nParams]
+			childQuery = query[nParams:]
+			childState = stateSearch[V]{
+				parameterValues: append(state.parameterValues, query[:nParams]...),
+				visitor:         state.visitor,
+			}
 		)
 
-		if res := childNode.searchStatic(childSegs, childParamVals); res != nil {
-			return res
+		if childNode.searchStatic(childQuery, childState) {
+			return true
 		}
 
-		wildSearches = append(wildSearches, func() *Result[V] {
-			return childNode.searchWild(childSegs, childParamVals)
+		wildSearches = append(wildSearches, func() bool {
+			return childNode.searchWild(childQuery, childState)
 		})
 	}
 
 	for i := len(wildSearches) - 1; i >= 0; i-- {
-		if res := wildSearches[i](); res != nil {
-			return res
+		if wildSearches[i]() {
+			return true
 		}
 	}
 
-	return nil
+	return false
 }
 
-func (esp edgeSetParameter[V]) values() []V {
-	var res []V
-
+func (esp edgeSetParameter[V]) walk(state stateWalk[V]) bool {
 	for _, node := range esp.nMap {
-		res = append(res, node.values()...)
+		if node.walk(state) {
+			return true
+		}
 	}
 
-	return res
+	return false
 }

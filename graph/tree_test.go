@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO: Deprecated, Remove me
+
 type stringerFunc func() string
 
 func (sf stringerFunc) String() string { return sf() }

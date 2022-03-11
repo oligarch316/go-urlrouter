@@ -1,18 +1,15 @@
 package graph
 
-type nodeValue[V any] struct {
-	parameterKeys []string
-	value         V
-}
+type nodeValue[V any] struct{ stateAdd[V] }
 
-func (nv nodeValue[V]) result(paramVals []string) *Result[V] {
+func (nv nodeValue[V]) result(parameterValues []string) *Result[V] {
 	res := &Result[V]{Value: nv.value}
 
 	if len(nv.parameterKeys) > 0 {
 		res.Parameters = make(map[string]string)
 
 		for i, key := range nv.parameterKeys {
-			res.Parameters[key] = paramVals[i]
+			res.Parameters[key] = parameterValues[i]
 		}
 	}
 
@@ -26,53 +23,60 @@ type nodeConstant[V any] struct {
 	wildcardEdges  edgeSetWildcard[V]
 }
 
-func (nc *nodeConstant[V]) add(keys []Key, val *nodeValue[V]) error {
-	head, tail, err := popEdge(keys)
+func (nc *nodeConstant[V]) add(path []Key, state stateAdd[V]) error {
+	head, tail, err := popEdge(path)
 	if err != nil {
 		return err
 	}
 
 	switch e := head.(type) {
 	case edgeValue:
-		return nc.valueEdges.add(e, val)
+		return nc.valueEdges.add(e, state)
 	case edgeConstant:
-		return nc.constantEdges.add(e, tail, val)
+		return nc.constantEdges.add(e, path, state)
 	case edgeParameter:
-		return nc.parameterEdges.add(e, tail, val)
+		return nc.parameterEdges.add(e, path, state)
 	case edgeWildcard:
-		return nc.wildcardEdges.add(e, tail, val)
+		return nc.wildcardEdges.add(e, tail, state)
 	}
 
 	return internalErrorf("constant node: invalid edge type %T: %s", head, head)
 }
 
-func (nc nodeConstant[V]) search(segs, paramVals []string) *Result[V] {
-	if len(segs) < 1 {
-		if res := nc.valueEdges.result(paramVals); res != nil {
-			return res
+func (nc nodeConstant[V]) search(query []string, state stateSearch[V]) bool {
+	if len(query) < 1 {
+		if nc.valueEdges.search(state) {
+			return true
 		}
 
-		return nc.wildcardEdges.result(nil, paramVals)
+		return nc.wildcardEdges.search(nil, state)
 	}
 
-	if res := nc.constantEdges.search(segs, paramVals); res != nil {
-		return res
+	if nc.constantEdges.search(query, state) {
+		return true
 	}
 
-	if res := nc.parameterEdges.search(segs, paramVals); res != nil {
-		return res
+	if nc.parameterEdges.search(query, state) {
+		return true
 	}
 
-	return nc.wildcardEdges.result(segs, paramVals)
+	return nc.wildcardEdges.search(query, state)
 }
 
-func (nc nodeConstant[V]) values() []V {
-	res := nc.valueEdges.values()
-	res = append(res, nc.constantEdges.values()...)
-	res = append(res, nc.parameterEdges.values()...)
-	res = append(res, nc.wildcardEdges.values()...)
+func (nc nodeConstant[V]) walk(state stateWalk[V]) bool {
+	if nc.valueEdges.walk(state) {
+		return true
+	}
 
-	return res
+	if nc.constantEdges.walk(state) {
+		return true
+	}
+
+	if nc.parameterEdges.walk(state) {
+		return true
+	}
+
+	return nc.wildcardEdges.walk(state)
 }
 
 type nodeParameter[V any] struct {
@@ -81,40 +85,44 @@ type nodeParameter[V any] struct {
 	wildcardEdges edgeSetWildcard[V]
 }
 
-func (np *nodeParameter[V]) add(keys []Key, val *nodeValue[V]) error {
-	head, tail, err := popEdge(keys)
+func (np *nodeParameter[V]) add(path []Key, state stateAdd[V]) error {
+	head, tail, err := popEdge(path)
 	if err != nil {
 		return err
 	}
 
 	switch e := head.(type) {
 	case edgeValue:
-		return np.valueEdges.add(e, val)
+		return np.valueEdges.add(e, state)
 	case edgeConstant:
-		return np.constantEdges.add(e, tail, val)
+		return np.constantEdges.add(e, tail, state)
 	case edgeWildcard:
-		return np.wildcardEdges.add(e, tail, val)
+		return np.wildcardEdges.add(e, tail, state)
 	}
 
 	return internalErrorf("parameter node: invalid edge type %T: %s", head, head)
 }
 
-func (np nodeParameter[V]) searchStatic(segs, paramVals []string) *Result[V] {
-	if len(segs) < 1 {
-		return np.valueEdges.result(paramVals)
+func (np nodeParameter[V]) searchStatic(query []string, state stateSearch[V]) bool {
+	if len(query) < 1 {
+		return np.valueEdges.search(state)
 	}
 
-	return np.constantEdges.search(segs, paramVals)
+	return np.constantEdges.search(query, state)
 }
 
-func (np nodeParameter[V]) searchWild(segs, paramVals []string) *Result[V] {
-	return np.wildcardEdges.result(segs, paramVals)
+func (np nodeParameter[V]) searchWild(query []string, state stateSearch[V]) bool {
+	return np.wildcardEdges.search(query, state)
 }
 
-func (np nodeParameter[V]) values() []V {
-	res := np.valueEdges.values()
-	res = append(res, np.constantEdges.values()...)
-	res = append(res, np.wildcardEdges.values()...)
+func (np nodeParameter[V]) walk(state stateWalk[V]) bool {
+	if np.valueEdges.walk(state) {
+		return true
+	}
 
-	return res
+	if np.constantEdges.walk(state) {
+		return true
+	}
+
+	return np.wildcardEdges.walk(state)
 }

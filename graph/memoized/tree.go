@@ -3,22 +3,20 @@ package memoized
 import "github.com/oligarch316/go-urlrouter/graph"
 
 type Memo[V any] struct {
-	Keys  []graph.Key
+	Path  []graph.Key
 	Value V
 }
 
-func (m Memo[_]) String() string { return graph.FormatPath(m.Value, m.Keys...) }
+func (m Memo[_]) String() string { return graph.FormatPath(m.Value, m.Path...) }
 
 type Tree[V any] struct {
-	tree graph.Tree[Memo[V]]
+	WithMemo graph.Tree[Memo[V]]
 }
 
-func (t *Tree[V]) Memos() []Memo[V] { return t.tree.Values() }
-
-func (t *Tree[V]) Add(val V, keys ...graph.Key) error {
+func (t *Tree[V]) Add(value V, path ...graph.Key) error {
 	var (
-		memo = Memo[V]{Keys: keys, Value: val}
-		err  = t.tree.Add(memo, keys...)
+		memo = Memo[V]{Path: path, Value: value}
+		err  = t.WithMemo.Add(memo, path...)
 	)
 
 	if dupErr, ok := err.(graph.DuplicateValueError[Memo[V]]); ok {
@@ -28,24 +26,30 @@ func (t *Tree[V]) Add(val V, keys ...graph.Key) error {
 	return err
 }
 
-func (t *Tree[V]) Search(segs ...string) *graph.Result[V] {
-	if memoResult := t.tree.Search(segs...); memoResult != nil {
-		return &graph.Result[V]{
+func (t *Tree[V]) Search(searcher graph.Searcher[V], query ...string) bool {
+	memoSearcher := func(memoResult *graph.Result[Memo[V]]) bool {
+		return searcher.VisitSearch(&graph.Result[V]{
 			Parameters: memoResult.Parameters,
 			Tail:       memoResult.Tail,
 			Value:      memoResult.Value.Value,
-		}
+		})
 	}
 
-	return nil
+	return t.WithMemo.SearchFunc(memoSearcher, query...)
 }
 
-func (t *Tree[V]) Values() []V {
-	var res []V
+func (t *Tree[V]) SearchFunc(searcher func(result *graph.Result[V]) (done bool), query ...string) bool {
+	return t.SearchFunc(graph.SearcherFunc[V](searcher), query...)
+}
 
-	for _, memoVal := range t.tree.Values() {
-		res = append(res, memoVal.Value)
+func (t *Tree[V]) Walk(walker graph.Walker[V]) bool {
+	memoWalker := func(memo Memo[V]) bool {
+		return walker.VisitWalk(memo.Value)
 	}
 
-	return res
+	return t.WithMemo.WalkFunc(memoWalker)
+}
+
+func (t *Tree[V]) WalkFunc(walker func(value V) (done bool)) bool {
+	return t.WalkFunc(graph.WalkerFunc[V](walker))
 }

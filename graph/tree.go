@@ -42,16 +42,41 @@ type Result[V any] struct {
 	Value      V
 }
 
+type (
+	Searcher[V any] interface {
+		VisitSearch(result *Result[V]) (done bool)
+	}
+
+	SearcherFunc[V any] func(result *Result[V]) (done bool)
+
+	Walker[V any] interface {
+		VisitWalk(value V) (done bool)
+	}
+
+	WalkerFunc[V any] func(value V) (done bool)
+)
+
+func (sf SearcherFunc[V]) VisitSearch(result *Result[V]) bool { return sf(result) }
+func (wf WalkerFunc[V]) VisitWalk(value V) bool               { return wf(value) }
+
 type Tree[V any] struct{ root nodeConstant[V] }
 
-func (t *Tree[V]) Add(val V, keys ...Key) error {
-	return t.root.add(keys, &nodeValue[V]{value: val})
+func (t *Tree[V]) Add(value V, path ...Key) error {
+	return t.root.add(path, stateAdd[V]{value: value})
 }
 
-func (t *Tree[V]) Search(segs ...string) *Result[V] {
-	return t.root.search(segs, nil)
+func (t *Tree[V]) Search(searcher Searcher[V], query ...string) bool {
+	return t.root.search(query, stateSearch[V]{visitor: searcher})
 }
 
-func (t *Tree[V]) Values() []V {
-	return t.root.values()
+func (t *Tree[V]) SearchFunc(visitor func(result *Result[V]) (done bool), query ...string) bool {
+	return t.Search(SearcherFunc[V](visitor), query...)
+}
+
+func (t *Tree[V]) Walk(walker Walker[V]) bool {
+	return t.root.walk(stateWalk[V]{visitor: walker})
+}
+
+func (t *Tree[V]) WalkFunc(walker func(value V) (done bool)) bool {
+	return t.Walk(WalkerFunc[V](walker))
 }
