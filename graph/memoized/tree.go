@@ -32,9 +32,7 @@ func wrapWalker[V any](walker graph.Walker[V]) graph.Walker[Memo[V]] {
 	return graph.WalkerFunc[Memo[V]](wrapped)
 }
 
-type Tree[V any] struct{ Memoized graph.Tree[Memo[V]] }
-
-func New[V any]() *Tree[V] { return &Tree[V]{Memoized: new(priority.Tree[Memo[V]])} }
+type Tree[V any] struct{ Memoized priority.Tree[Memo[V]] }
 
 func (t *Tree[V]) Add(value V, path ...graph.Key) error {
 	var (
@@ -49,18 +47,18 @@ func (t *Tree[V]) Add(value V, path ...graph.Key) error {
 	return err
 }
 
-func (t *Tree[V]) Search(searcher graph.Searcher[V], query ...string) bool {
+func (t Tree[V]) Search(searcher graph.Searcher[V], query ...string) bool {
 	return t.Memoized.Search(wrapSearcher(searcher), query...)
 }
 
-func (t *Tree[V]) SearchFunc(searcher func(result *graph.SearchResult[V]) (done bool), query ...string) bool {
+func (t Tree[V]) SearchFunc(searcher func(result *graph.SearchResult[V]) (done bool), query ...string) bool {
 	return t.SearchFunc(graph.SearcherFunc[V](searcher), query...)
 }
 
-func (t *Tree[V]) Walk(walker graph.Walker[V]) bool {
+func (t Tree[V]) Walk(walker graph.Walker[V]) bool {
 	return t.Memoized.Walk(wrapWalker(walker))
 }
 
-func (t *Tree[V]) WalkFunc(walker func(value V) (done bool)) bool {
+func (t Tree[V]) WalkFunc(walker func(value V) (done bool)) bool {
 	return t.WalkFunc(graph.WalkerFunc[V](walker))
 }
