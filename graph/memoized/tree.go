@@ -47,18 +47,18 @@ func (t *Tree[V]) Add(value V, path ...graph.Key) error {
 	return err
 }
 
-func (t Tree[V]) Search(searcher graph.Searcher[V], query ...string) bool {
-	return t.Memoized.Search(wrapSearcher(searcher), query...)
+func (t Tree[V]) Search(searcher graph.Searcher[V], query ...string) {
+	t.Memoized.Search(wrapSearcher(searcher), query...)
 }
 
-func (t Tree[V]) SearchFunc(searcher func(result *graph.SearchResult[V]) (done bool), query ...string) bool {
-	return t.SearchFunc(graph.SearcherFunc[V](searcher), query...)
+func (t Tree[V]) SearchFunc(searcher func(result *graph.SearchResult[V]) (done bool), query ...string) {
+	t.SearchFunc(graph.SearcherFunc[V](searcher), query...)
 }
 
-func (t Tree[V]) Walk(walker graph.Walker[V]) bool {
-	return t.Memoized.Walk(wrapWalker(walker))
+func (t Tree[V]) Walk(walker graph.Walker[V]) {
+	t.Memoized.Walk(wrapWalker(walker))
 }
 
-func (t Tree[V]) WalkFunc(walker func(value V) (done bool)) bool {
-	return t.WalkFunc(graph.WalkerFunc[V](walker))
+func (t Tree[V]) WalkFunc(walker func(value V) (done bool)) {
+	t.WalkFunc(graph.WalkerFunc[V](walker))
 }

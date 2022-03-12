@@ -2,7 +2,7 @@ package walk
 
 import "github.com/oligarch316/go-urlrouter/graph"
 
-type Walkable[V any] interface{ Walk(graph.Walker[V]) bool }
+type Walkable[V any] interface{ Walk(graph.Walker[V]) }
 
 func All[V any](tree Walkable[V]) []V {
 	visitor := new(VisitorAll[V])

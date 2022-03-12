@@ -24,6 +24,6 @@ func (wf WalkerFunc[V]) VisitWalk(value V) bool { return wf(value) }
 
 type Tree[V any] interface {
 	Add(V, ...Key) error
-	Search(Searcher[V], ...string) bool
-	Walk(Walker[V]) bool
+	Search(Searcher[V], ...string)
+	Walk(Walker[V])
 }

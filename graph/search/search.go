@@ -3,7 +3,7 @@ package search
 import "github.com/oligarch316/go-urlrouter/graph"
 
 type Searchable[V any] interface {
-	Search(graph.Searcher[V], ...string) bool
+	Search(graph.Searcher[V], ...string)
 }
 
 func All[V any](tree Searchable[V], query ...string) []*graph.SearchResult[V] {
