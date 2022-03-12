@@ -14,7 +14,7 @@ func (wv *walkVisitor) VisitWalk(value string) bool {
 	return false
 }
 
-func TestGraphTreeWalk(t *testing.T) {
+func TestGraphWalk(t *testing.T) {
 	var (
 		a     = graph.KeyConstant("a")
 		param = graph.KeyParameter("param")

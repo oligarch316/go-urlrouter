@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGraphPopEdge(t *testing.T) {
+func TestGraphPriorityPopEdge(t *testing.T) {
 	var (
 		a = graph.KeyConstant("constA")
 		b = graph.KeyConstant("constB")

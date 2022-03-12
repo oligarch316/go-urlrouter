@@ -26,7 +26,7 @@ func (sv *searchVisitor) VisitSearch(result *graph.SearchResult[string]) bool {
 	return false
 }
 
-func TestGraphTreeSearch(t *testing.T) {
+func TestGraphSearch(t *testing.T) {
 	var (
 		a = graph.KeyConstant("a")
 		b = graph.KeyConstant("b")

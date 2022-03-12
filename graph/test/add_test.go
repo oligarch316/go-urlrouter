@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGraphTreeAddError(t *testing.T) {
+func TestGraphAddError(t *testing.T) {
 	var (
 		a = graph.KeyConstant("a")
 		b = graph.KeyConstant("b")

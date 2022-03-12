@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGraphNodeAddInternalError(t *testing.T) {
+func TestGraphPriorityInternalError(t *testing.T) {
 	var (
 		node  nodeParameter[string]
 		keys  = []graph.Key{graph.KeyParameter("someParam")}
