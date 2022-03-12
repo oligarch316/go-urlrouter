@@ -49,9 +49,9 @@ func (nc *nodeConstant[V]) add(path []graph.Key, state stateAdd[V]) error {
 	case edgeValue:
 		return nc.valueEdges.add(e, state)
 	case edgeConstant:
-		return nc.constantEdges.add(e, path, state)
+		return nc.constantEdges.add(e, tail, state)
 	case edgeParameter:
-		return nc.parameterEdges.add(e, path, state)
+		return nc.parameterEdges.add(e, tail, state)
 	case edgeWildcard:
 		return nc.wildcardEdges.add(e, tail, state)
 	}
