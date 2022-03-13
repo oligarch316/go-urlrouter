@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestComponentDecodeKeyFailure(t *testing.T) {
+func TestComponentDecodeKeyError(t *testing.T) {
 	inputs := []string{
 		"",
 		":",
@@ -19,12 +19,12 @@ func TestComponentDecodeKeyFailure(t *testing.T) {
 	for _, input := range inputs {
 		var (
 			in   = input
-			name = fmt.Sprintf("input '%s'", in)
+			name = fmt.Sprintf("input '%s", in)
 		)
 
 		t.Run(name, func(t *testing.T) {
-			actual := component.DefaultKeyDecoder(in)
-			assert.Nil(t, actual)
+			_, err := component.DefaultKeyDecoder(input)
+			assert.ErrorIs(t, err, component.ErrInvalidSegment)
 		})
 	}
 }
@@ -55,10 +55,10 @@ func TestComponentDecodeKeySuccess(t *testing.T) {
 		)
 
 		t.Run(name, func(t *testing.T) {
-			actual := component.DefaultKeyDecoder(st.input)
+			actual, err := component.DefaultKeyDecoder(st.input)
 
-			require.IsType(t, st.expected, actual)
-			assert.EqualValues(t, st.expected, actual)
+			require.NoError(t, err)
+			assert.Equal(t, st.expected, actual)
 		})
 	}
 }

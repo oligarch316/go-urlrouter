@@ -1,24 +1,43 @@
 package memoized
 
-import "github.com/oligarch316/go-urlrouter/graph"
+import (
+	"github.com/oligarch316/go-urlrouter/graph"
+	"github.com/oligarch316/go-urlrouter/graph/priority"
+)
 
 type Memo[V any] struct {
-	Keys  []graph.Key
+	Path  []graph.Key
 	Value V
 }
 
-func (m Memo[_]) String() string { return graph.FormatPath(m.Value, m.Keys...) }
+func (m Memo[_]) String() string { return graph.FormatPath(m.Value, m.Path...) }
 
-type Tree[V any] struct {
-	tree graph.Tree[Memo[V]]
+func wrapSearcher[V any](searcher graph.Searcher[V]) graph.Searcher[Memo[V]] {
+	wrapped := func(memoResult *graph.SearchResult[Memo[V]]) bool {
+		return searcher.VisitSearch(&graph.SearchResult[V]{
+			Parameters: memoResult.Parameters,
+			Tail:       memoResult.Tail,
+			Value:      memoResult.Value.Value,
+		})
+	}
+
+	return graph.SearcherFunc[Memo[V]](wrapped)
 }
 
-func (t *Tree[V]) Memos() []Memo[V] { return t.tree.Values() }
+func wrapWalker[V any](walker graph.Walker[V]) graph.Walker[Memo[V]] {
+	wrapped := func(memo Memo[V]) bool {
+		return walker.VisitWalk(memo.Value)
+	}
 
-func (t *Tree[V]) Add(val V, keys ...graph.Key) error {
+	return graph.WalkerFunc[Memo[V]](wrapped)
+}
+
+type Tree[V any] struct{ Memoized priority.Tree[Memo[V]] }
+
+func (t *Tree[V]) Add(value V, path ...graph.Key) error {
 	var (
-		memo = Memo[V]{Keys: keys, Value: val}
-		err  = t.tree.Add(memo, keys...)
+		memo = Memo[V]{Path: path, Value: value}
+		err  = t.Memoized.Add(memo, path...)
 	)
 
 	if dupErr, ok := err.(graph.DuplicateValueError[Memo[V]]); ok {
@@ -28,24 +47,18 @@ func (t *Tree[V]) Add(val V, keys ...graph.Key) error {
 	return err
 }
 
-func (t *Tree[V]) Search(segs ...string) *graph.Result[V] {
-	if memoResult := t.tree.Search(segs...); memoResult != nil {
-		return &graph.Result[V]{
-			Parameters: memoResult.Parameters,
-			Tail:       memoResult.Tail,
-			Value:      memoResult.Value.Value,
-		}
-	}
-
-	return nil
+func (t Tree[V]) Search(searcher graph.Searcher[V], query ...string) {
+	t.Memoized.Search(wrapSearcher(searcher), query...)
 }
 
-func (t *Tree[V]) Values() []V {
-	var res []V
+func (t Tree[V]) SearchFunc(searcher func(result *graph.SearchResult[V]) (done bool), query ...string) {
+	t.SearchFunc(graph.SearcherFunc[V](searcher), query...)
+}
 
-	for _, memoVal := range t.tree.Values() {
-		res = append(res, memoVal.Value)
-	}
+func (t Tree[V]) Walk(walker graph.Walker[V]) {
+	t.Memoized.Walk(wrapWalker(walker))
+}
 
-	return res
+func (t Tree[V]) WalkFunc(walker func(value V) (done bool)) {
+	t.WalkFunc(graph.WalkerFunc[V](walker))
 }

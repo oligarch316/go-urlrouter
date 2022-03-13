@@ -2,119 +2,73 @@ package component_test
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/oligarch316/go-urlrouter/component"
 	"github.com/oligarch316/go-urlrouter/graph"
-	"github.com/oligarch316/go-urlrouter/graph/memoized"
+	"github.com/oligarch316/go-urlrouter/graph/search"
+	graphtest "github.com/oligarch316/go-urlrouter/graph/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: More comprehensive tests
+type Query string
 
-const infoFormat = `--------
-%s:
-> %s
---------
-Tree:
-%s`
-
-type actionInfo struct {
-	action, data string
-	tree         TestTree
+func (q Query) String() string {
+	return fmt.Sprintf("--------\nQuery:\n> %s", string(q))
 }
 
-func (ai actionInfo) String() string {
-	return fmt.Sprintf(infoFormat, ai.action, ai.data, ai.tree)
+type RouteItem struct{ pattern, value string }
+
+func (ri RouteItem) String() string {
+	return fmt.Sprintf("--------\nRoute:\n> %s→%s", ri.pattern, ri.value)
 }
 
-type TestTree struct{ memoized.Tree[string] }
+type Tree struct{ graphtest.Tree }
 
-func (tt TestTree) String() string {
+func (t *Tree) AsOption(r *component.Router[string]) { r.Tree = t }
+
+func Route(pattern, value string) RouteItem {
+	return RouteItem{pattern: pattern, value: value}
+}
+
+func TestComponentRouterHostSearch(t *testing.T) {
 	var (
-		strs  []string
-		memos = tt.Memos()
+		tree   Tree
+		router = component.NewHostRouter(tree.AsOption)
 	)
 
-	if len(memos) == 0 {
-		return "<empty>"
+	routes := []RouteItem{
+		Route("a.b.com", "valCom1"),
+		Route(":some.b.com", "valCom2"),
+		Route("*any.b.com", "valCom3"),
+
+		Route("a.b.:other", "valOther1"),
+		Route(":some.b.:other", "valOther2"),
+		Route("*any.b.:other", "valOther3"),
+
+		Route("*any", "valAny"),
 	}
 
-	for _, memo := range memos {
-		strs = append(strs, "> "+memo.String())
+	for _, route := range routes {
+		err := router.Add(route.pattern, route.value)
+
+		require.NoError(t, err, graphtest.Info(route, &tree).Note("check add error"))
 	}
 
-	return strings.Join(strs, "\n")
-}
-
-func (tt *TestTree) asOption(p *component.Params[string]) { p.Tree = tt }
-
-func (tt TestTree) addInfo(data string) fmt.Stringer {
-	return actionInfo{action: "Add", data: data, tree: tt}
-}
-
-func (tt TestTree) searchInfo(data string) fmt.Stringer {
-	return actionInfo{action: "Search", data: data, tree: tt}
-}
-
-func TestComponentRouteHost(t *testing.T) {
-	var (
-		tree   TestTree
-		router = component.NewHostRouter(tree.asOption)
-	)
-
-	addItems := []struct{ host, value string }{
-		{
-			host:  "a.b.com",
-			value: "valCom1",
-		},
-		{
-			host:  ":some.b.com",
-			value: "valCom2",
-		},
-		{
-			host:  "*any.b.com",
-			value: "valCom3",
-		},
-		{
-			host:  "a.b.:other",
-			value: "valOther1",
-		},
-		{
-			host:  ":some.b.:other",
-			value: "valOther2",
-		},
-		{
-			host:  "*any.b.:other",
-			value: "valOther3",
-		},
-		{
-			host:  "*any",
-			value: "valAny",
-		},
-	}
-
-	for _, item := range addItems {
-		err := router.Add(item.host, item.value)
-
-		require.NoError(t, err, tree.addInfo(item.host))
-	}
-
-	searchItems := []struct {
-		host     string
-		expected graph.Result[string]
+	searchTests := []struct {
+		query    Query
+		expected graph.SearchResult[string]
 	}{
 		{
-			host: "a.b.com",
-			expected: graph.Result[string]{
+			query: "a.b.com",
+			expected: graph.SearchResult[string]{
 				Value: "valCom1",
 			},
 		},
 		{
-			host: "x.b.com",
-			expected: graph.Result[string]{
+			query: "x.b.com",
+			expected: graph.SearchResult[string]{
 				Value: "valCom2",
 				Parameters: map[string]string{
 					"some": "x",
@@ -122,15 +76,15 @@ func TestComponentRouteHost(t *testing.T) {
 			},
 		},
 		{
-			host: "x.y.b.com",
-			expected: graph.Result[string]{
+			query: "x.y.b.com",
+			expected: graph.SearchResult[string]{
 				Value: "valCom3",
 				Tail:  []string{"y", "x"},
 			},
 		},
 		{
-			host: "a.b.org",
-			expected: graph.Result[string]{
+			query: "a.b.org",
+			expected: graph.SearchResult[string]{
 				Value: "valOther1",
 				Parameters: map[string]string{
 					"other": "org",
@@ -138,8 +92,8 @@ func TestComponentRouteHost(t *testing.T) {
 			},
 		},
 		{
-			host: "x.b.org",
-			expected: graph.Result[string]{
+			query: "x.b.org",
+			expected: graph.SearchResult[string]{
 				Value: "valOther2",
 				Parameters: map[string]string{
 					"some":  "x",
@@ -148,8 +102,8 @@ func TestComponentRouteHost(t *testing.T) {
 			},
 		},
 		{
-			host: "x.y.b.org",
-			expected: graph.Result[string]{
+			query: "x.y.b.org",
+			expected: graph.SearchResult[string]{
 				Value: "valOther3",
 				Parameters: map[string]string{
 					"other": "org",
@@ -157,97 +111,89 @@ func TestComponentRouteHost(t *testing.T) {
 				Tail: []string{"y", "x"},
 			},
 		},
+
 		{
-			host: "x.y.com",
-			expected: graph.Result[string]{
+			query: "x.y.com",
+			expected: graph.SearchResult[string]{
 				Value: "valAny",
 				Tail:  []string{"com", "y", "x"},
 			},
 		},
 		{
-			host: "x.y.org",
-			expected: graph.Result[string]{
+			query: "x.y.org",
+			expected: graph.SearchResult[string]{
 				Value: "valAny",
 				Tail:  []string{"org", "y", "x"},
 			},
 		},
 	}
 
-	for _, item := range searchItems {
+	for _, searchTest := range searchTests {
 		var (
-			result, err = router.Search(item.host)
-			info        = tree.searchInfo(item.host)
+			query    = searchTest.query
+			expected = searchTest.expected
+
+			visitor = new(search.VisitorFirst[string])
+			info    = graphtest.Info(query, &tree)
 		)
 
-		if !assert.NoError(t, err, info) {
+		err := router.Search(visitor, string(query))
+		if !assert.NoError(t, err, info.Note("check search error")) {
 			continue
 		}
 
-		if !assert.Equal(t, item.expected.Value, result.Value, "check value\n%s", info) {
+		actual := visitor.Result
+
+		if !assert.NotNil(t, actual, info.Note("check nil result")) {
 			continue
 		}
 
-		assert.Equal(t, item.expected.Parameters, result.Parameters, "check params\n%s", info)
-		assert.Equal(t, item.expected.Tail, result.Tail, "check tail\n%s", info)
+		if !assert.Equal(t, expected.Value, actual.Value, info.Note("check value")) {
+			continue
+		}
+
+		assert.Equal(t, expected.Parameters, actual.Parameters, info.Note("check params"))
+		assert.Equal(t, expected.Tail, actual.Tail, info.Note("check tail"))
 	}
 }
 
-func TestComponentRoutePath(t *testing.T) {
+func TestComponentRouterPathSearch(t *testing.T) {
 	var (
-		tree   TestTree
-		router = component.NewPathRouter(tree.asOption)
+		tree   Tree
+		router = component.NewPathRouter(tree.AsOption)
 	)
 
-	addItems := []struct{ path, value string }{
-		{
-			path:  "/foo/a/b",
-			value: "valFoo1",
-		},
-		{
-			path:  "/foo/a/:some",
-			value: "valFoo2",
-		},
-		{
-			path:  "/foo/a/*any",
-			value: "valFoo3",
-		},
-		{
-			path:  "/:other/a/b",
-			value: "valOther1",
-		},
-		{
-			path:  "/:other/a/:some",
-			value: "valOther2",
-		},
-		{
-			path:  "/:other/a/*any",
-			value: "valOther3",
-		},
-		{
-			path:  "/*any",
-			value: "valAny",
-		},
+	routes := []RouteItem{
+		Route("/foo/a/b", "valFoo1"),
+		Route("/foo/a/:some", "valFoo2"),
+		Route("/foo/a/*any", "valFoo3"),
+
+		Route("/:other/a/b", "valOther1"),
+		Route("/:other/a/:some", "valOther2"),
+		Route("/:other/a/*any", "valOther3"),
+
+		Route("/*any", "valAny"),
 	}
 
-	for _, item := range addItems {
-		err := router.Add(item.path, item.value)
+	for _, route := range routes {
+		err := router.Add(route.pattern, route.value)
 
-		require.NoError(t, err, tree.addInfo(item.path))
+		require.NoError(t, err, graphtest.Info(route, &tree).Note("check add error"))
 	}
 
-	searchItems := []struct {
-		path     string
-		expected graph.Result[string]
+	searchTests := []struct {
+		query    Query
+		expected graph.SearchResult[string]
 	}{
 		{
-			path: "/foo/a/b",
-			expected: graph.Result[string]{
+			query: "/foo/a/b",
+			expected: graph.SearchResult[string]{
 				Value: "valFoo1",
 			},
 		},
 		{
-			path: "/foo/a/x",
-			expected: graph.Result[string]{
+			query: "/foo/a/x",
+			expected: graph.SearchResult[string]{
 				Value: "valFoo2",
 				Parameters: map[string]string{
 					"some": "x",
@@ -255,15 +201,15 @@ func TestComponentRoutePath(t *testing.T) {
 			},
 		},
 		{
-			path: "/foo/a/x/y",
-			expected: graph.Result[string]{
+			query: "/foo/a/x/y",
+			expected: graph.SearchResult[string]{
 				Value: "valFoo3",
 				Tail:  []string{"x", "y"},
 			},
 		},
 		{
-			path: "/bar/a/b",
-			expected: graph.Result[string]{
+			query: "/bar/a/b",
+			expected: graph.SearchResult[string]{
 				Value: "valOther1",
 				Parameters: map[string]string{
 					"other": "bar",
@@ -271,18 +217,18 @@ func TestComponentRoutePath(t *testing.T) {
 			},
 		},
 		{
-			path: "/bar/a/x",
-			expected: graph.Result[string]{
+			query: "/bar/a/x",
+			expected: graph.SearchResult[string]{
 				Value: "valOther2",
 				Parameters: map[string]string{
-					"other": "bar",
 					"some":  "x",
+					"other": "bar",
 				},
 			},
 		},
 		{
-			path: "/bar/a/x/y",
-			expected: graph.Result[string]{
+			query: "/bar/a/x/y",
+			expected: graph.SearchResult[string]{
 				Value: "valOther3",
 				Parameters: map[string]string{
 					"other": "bar",
@@ -291,36 +237,46 @@ func TestComponentRoutePath(t *testing.T) {
 			},
 		},
 		{
-			path: "/foo/x/y",
-			expected: graph.Result[string]{
+			query: "/foo/x/y",
+			expected: graph.SearchResult[string]{
 				Value: "valAny",
 				Tail:  []string{"foo", "x", "y"},
 			},
 		},
 		{
-			path: "/bar/x/y",
-			expected: graph.Result[string]{
+			query: "/bar/x/y",
+			expected: graph.SearchResult[string]{
 				Value: "valAny",
 				Tail:  []string{"bar", "x", "y"},
 			},
 		},
 	}
 
-	for _, item := range searchItems {
+	for _, searchTest := range searchTests {
 		var (
-			result, err = router.Search(item.path)
-			info        = tree.searchInfo(item.path)
+			query    = searchTest.query
+			expected = searchTest.expected
+
+			visitor = new(search.VisitorFirst[string])
+			info    = graphtest.Info(query, &tree)
 		)
 
-		if !assert.NoError(t, err, info) {
+		err := router.Search(visitor, string(query))
+		if !assert.NoError(t, err, info.Note("check search error")) {
 			continue
 		}
 
-		if !assert.Equal(t, item.expected.Value, result.Value, "check value\n%s", info) {
+		actual := visitor.Result
+
+		if !assert.NotNil(t, actual, info.Note("check nil result")) {
 			continue
 		}
 
-		assert.Equal(t, item.expected.Parameters, result.Parameters, "check params\n%s", info)
-		assert.Equal(t, item.expected.Tail, result.Tail, "check tail\n%s", info)
+		if !assert.Equal(t, expected.Value, actual.Value, info.Note("check value")) {
+			continue
+		}
+
+		assert.Equal(t, expected.Parameters, actual.Parameters, info.Note("check params"))
+		assert.Equal(t, expected.Tail, actual.Tail, info.Note("check tail"))
 	}
 }

@@ -1,34 +1,11 @@
-package graph
+package priority
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/oligarch316/go-urlrouter/graph"
 )
-
-type Result[V any] struct {
-	Parameters map[string]string
-	Tail       []string
-	Value      V
-}
-
-type (
-	Key interface {
-		fmt.Stringer
-		sealedKey()
-	}
-
-	KeyConstant  string
-	KeyParameter string
-	KeyWildcard  struct{}
-)
-
-func (KeyConstant) sealedKey()  {}
-func (KeyParameter) sealedKey() {}
-func (KeyWildcard) sealedKey()  {}
-
-func (KeyWildcard) String() string     { return "wild" }
-func (kc KeyConstant) String() string  { return fmt.Sprintf("const(%s)", string(kc)) }
-func (kp KeyParameter) String() string { return fmt.Sprintf("param(%s)", string(kp)) }
 
 type (
 	edge interface {
@@ -57,4 +34,37 @@ func (ep edgeParameter) String() string {
 		strs[i] = fmt.Sprintf("%s", param)
 	}
 	return fmt.Sprintf("param(%s)", strings.Join(strs, ","))
+}
+
+func popEdge(keys []graph.Key) (edge, []graph.Key, error) {
+	if len(keys) < 1 {
+		return edgeValue{}, nil, nil
+	}
+
+	var paramEdge edgeParameter
+
+	for i, key := range keys {
+		if key == nil {
+			return nil, nil, graph.ErrNilKey
+		}
+
+		switch t := key.(type) {
+		case graph.KeyParameter:
+			paramEdge = append(paramEdge, string(t))
+		case graph.KeyConstant:
+			if i == 0 {
+				return edgeConstant(t), keys[1:], nil
+			}
+
+			return paramEdge, keys[i:], nil
+		case graph.KeyWildcard:
+			if i == 0 {
+				return edgeWildcard{}, keys[1:], nil
+			}
+
+			return paramEdge, keys[i:], nil
+		}
+	}
+
+	return paramEdge, nil, nil
 }

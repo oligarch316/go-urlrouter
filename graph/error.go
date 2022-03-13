@@ -1,18 +1,16 @@
 package graph
 
-import (
-	"errors"
-	"fmt"
+import "errors"
+
+var (
+	ErrInternal = errors.New("internal")
+	ErrNilKey   = errors.New("nil key")
 )
 
-var ErrInternal = errors.New("internal")
+type DuplicateValueError[V any] struct{ ExistingValue V }
 
-type internalError string
+func (dve DuplicateValueError[_]) Error() string { return "dupliate value" }
 
-func internalErrorf(format string, a ...interface{}) internalError {
-	message := fmt.Sprintf(format, a...)
-	return internalError(message)
-}
+type InvalidContinuationError struct{ Continuation []Key }
 
-func (ie internalError) Error() string        { return string(ie) }
-func (ie internalError) Is(target error) bool { return target == ErrInternal }
+func (ice InvalidContinuationError) Error() string { return "invalid continuation" }
