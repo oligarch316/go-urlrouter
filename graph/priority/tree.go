@@ -12,8 +12,8 @@ func (t Tree[V]) Search(searcher graph.Searcher[V], query ...string) {
 	t.root.search(query, stateSearch[V]{visitor: searcher})
 }
 
-func (t Tree[V]) SearchFunc(visitor func(result *graph.SearchResult[V]) (done bool), query ...string) {
-	t.Search(graph.SearcherFunc[V](visitor), query...)
+func (t Tree[V]) SearchFunc(searcher func(result *graph.SearchResult[V]) (done bool), query ...string) {
+	t.Search(graph.SearcherFunc[V](searcher), query...)
 }
 
 func (t Tree[V]) Walk(walker graph.Walker[V]) {
