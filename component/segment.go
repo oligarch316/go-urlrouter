@@ -16,61 +16,50 @@ var (
 	ErrInvalidPath = errors.New("invalid path")
 )
 
-type segmenter func(string) ([]string, error)
+type PatternSegmenter interface {
+	Segment(string) ([]string, error)
+}
 
-func segmentHost(host string) ([]string, error) {
-	if host == "" {
-		return []string{}, nil
+type PatternSegmenterFunc func(string) ([]string, error)
+
+func (psf PatternSegmenterFunc) Segment(pattern string) ([]string, error) { return psf(pattern) }
+
+func segmentHostDefault(pattern string) ([]string, error) {
+	if pattern == "" {
+		return nil, nil
 	}
 
 	var (
-		sections  = strings.Split(host, string(segHostSep))
-		nSections = len(sections)
-		res       = make([]string, nSections)
+		fields  = strings.Split(pattern, string(segHostSep))
+		nFields = len(fields)
+		res     = make([]string, nFields)
 	)
 
-	for i, section := range sections {
-		if section == "" {
-			return nil, fmt.Errorf("%w: empty segment", ErrInvalidHost)
-		}
-
-		res[(nSections-1)-i] = section
+	for i, field := range fields {
+		res[(nFields-1)-i] = field
 	}
 
 	return res, nil
 }
 
-func segmentPath(path string) ([]string, error) {
-	if len(path) == 0 || path[0] != segPathSep {
+func segmentPathDefault(pattern string) ([]string, error) {
+	if pattern == "" || pattern[0] != segPathSep {
 		return nil, fmt.Errorf("%w: missing leading slash", ErrInvalidPath)
 	}
 
-	path = path[1:]
+	pattern = pattern[1:]
 
-	switch len(path) {
-	case 0:
-		return []string{}, nil
-	case 1:
-		if path[0] == segPathSep {
-			return nil, fmt.Errorf("%w: empty segment", ErrInvalidPath)
-		}
-	default:
-		if path[len(path)-1] == segPathSep {
-			path = path[:len(path)-1]
-		}
+	if pattern == "" {
+		return nil, nil
 	}
 
-	var (
-		err      error
-		sections = strings.Split(path, string(segPathSep))
-	)
-
-	for _, section := range sections {
-		if section == "" {
-			err = fmt.Errorf("%w: empty segment", ErrInvalidPath)
-			break
+	if lastIdx := len(pattern) - 1; pattern[lastIdx] == segPathSep {
+		if lastIdx == 0 {
+			return nil, nil
 		}
+
+		pattern = pattern[:lastIdx]
 	}
 
-	return sections, err
+	return strings.Split(pattern, string(segPathSep)), nil
 }

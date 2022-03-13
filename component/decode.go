@@ -1,13 +1,18 @@
 package component
 
-import "github.com/oligarch316/go-urlrouter/graph"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/oligarch316/go-urlrouter/graph"
+)
 
 const (
 	decPrefixParam = ':'
 	decPrefixWild  = '*'
 )
 
-var DefaultKeyDecoder KeyDecodeFunc = decodeKeyDefault
+var ErrInvalidSegment = errors.New("invalid segment")
 
 // NOTE: KeyDecoder.Decode() is defined to process slice -> slice because:
 //
@@ -31,33 +36,47 @@ var DefaultKeyDecoder KeyDecodeFunc = decodeKeyDefault
 // Doing such necessitates that KeyDecoder.Decode() can be stateful (scoped param counter),
 // thus []string -> []graph.Key rather than string -> graph.Key
 
-type KeyDecoder interface{ Decode([]string) []graph.Key }
-
-type KeyDecodeFunc func(string) graph.Key
-
-func (kdf KeyDecodeFunc) Decode(segs []string) []graph.Key {
-	res := make([]graph.Key, len(segs))
-	for i, seg := range segs {
-		res[i] = kdf(seg)
-	}
-	return res
+type KeyDecoder interface {
+	Decode([]string) ([]graph.Key, error)
 }
 
-func decodeKeyDefault(raw string) graph.Key {
+type KeyDecoderFunc func([]string) ([]graph.Key, error)
+
+func (kdf KeyDecoderFunc) Decode(segs []string) ([]graph.Key, error) { return kdf(segs) }
+
+type KeyDecodeFunc func(string) (graph.Key, error)
+
+func (kdf KeyDecodeFunc) Decode(segs []string) ([]graph.Key, error) {
+	var (
+		err error
+		res = make([]graph.Key, len(segs))
+	)
+
+	for i, seg := range segs {
+		if res[i], err = kdf(seg); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, nil
+}
+
+func decodeKeyDefault(raw string) (graph.Key, error) {
 	rawLen := len(raw)
 	if rawLen == 0 {
-		return nil
+		return nil, fmt.Errorf("%w: empty segment", ErrInvalidSegment)
 	}
 
 	switch raw[0] {
 	case decPrefixParam:
 		if rawLen < 2 {
-			return nil
+			return nil, fmt.Errorf("%w: empty parameter name", ErrInvalidSegment)
 		}
-		return graph.KeyParameter(raw[1:])
+
+		return graph.KeyParameter(raw[1:]), nil
 	case decPrefixWild:
-		return graph.KeyWildcard{}
+		return graph.KeyWildcard{}, nil
 	}
 
-	return graph.KeyConstant(raw)
+	return graph.KeyConstant(raw), nil
 }
