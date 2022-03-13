@@ -27,6 +27,7 @@ test: ## Run tests
 test.v: test_flags += -v
 test.v: test ## Run tests with verbose output
 
+# TODO: Current coverage is piecemeal (meaning broken), check if -coverpkg solves this
 test.cover: test_flags += -coverprofile=$(test_coverprofile_target)
 test.cover: test ## Generate test coverage report
 
